@@ -63,7 +63,8 @@
   .jugador .est { font-size: 15px; font-weight: 600; }
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
-<script src="/qrcode.js"></script>
+<script src="qrcode.js"></script>
+<script src="dibujos.js"></script>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
 </script>
@@ -73,7 +74,7 @@
 <div class="pantalla" id="pCrear" style="gap:56px">
   <div class="cabeza">
     <div class="marca titular">Ping <span>Phone</span></div>
-    <div class="sec" style="font-size:15px">Juego local · todos en el mismo WiFi</div>
+    <div class="sec" style="font-size:15px">El celular y la laptop, en el mismo WiFi</div>
   </div>
   <div class="cuerpo" style="align-items:flex-start">
     <div class="columna" style="flex:1 1 420px;max-width:520px;gap:28px">
@@ -81,7 +82,7 @@
       <div class="columna" style="gap:8px">
         <div class="etiqueta">Nombre de la sala</div>
         <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
-          <div class="titular" id="crearNombre" style="flex:1 1 220px;min-width:0;font-size:44px;line-height:52px;color:#fff">Renata</div>
+          <div class="titular" id="crearNombre" style="flex:1 1 220px;min-width:0;font-size:44px;line-height:52px;color:#fff">…</div>
           <button class="borde" id="otroNombre">Otro nombre</button>
         </div>
       </div>
@@ -95,8 +96,7 @@
           <input type="text" id="claveSala" placeholder="Contraseña" maxlength="30" autocomplete="off">
         </div>
       </div>
-      <button class="rojo titular" id="crearSala" disabled>Crear sala</button>
-      <div class="sec" style="font-size:15px">Versión en línea en construcción: todavía no se puede conectar el celular.</div>
+      <button class="rojo titular" id="crearSala">Crear sala</button>
     </div>
     <div style="flex:1 1 360px;display:flex;justify-content:center">
       <svg aria-hidden="true" viewBox="0 0 420 420" style="width:100%;max-width:420px">
@@ -144,10 +144,11 @@
       <ol style="margin:0;padding-left:22px;font-size:17px;line-height:1.5">
         <li>Conéctate al mismo WiFi que esta laptop.</li>
         <li>Escanea el código con la cámara.</li>
-        <li>Elige la app o jugar desde el navegador.</li>
+        <li>Pon tu nombre y toca «Jugar aquí».</li>
       </ol>
-      <button class="enlace" id="porIp" style="align-self:flex-start">¿No escanea? Conectar por IP</button>
+      <button class="enlace" id="porIp" style="align-self:flex-start">¿No escanea? Ver la dirección</button>
       <div id="qrUrl" style="display:none;font-size:17px;overflow-wrap:anywhere"></div>
+      <div id="salaRed" style="font-size:15px;color:#ffa726"></div>
     </div>
   </div>
 </div>
@@ -561,7 +562,7 @@ let jugadorConectado = false;
 
 const $ = (id) => document.getElementById(id);
 
-function vibrar(ms) { fetch(`/vibrar?j=1&ms=${ms}`); }
+function vibrar(ms) { servidor(`/vibrar?j=1&ms=${ms}`); }
 $('vibrar').onclick = () => vibrar(80);
 
 // ---------- Calibración guiada ----------
@@ -578,7 +579,7 @@ const TEXTO_PASO = [
 ];
 const VISTA_PASO = ['', 'Vista desde arriba', 'Vista desde arriba', 'Vista desde arriba', 'Vista de frente', 'Vista de frente'];
 // Dibujos de cada paso (los mismos que muestra el celular).
-const DIBUJO_PASO = ['', "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"#3A3D44\"/><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"none\" stroke=\"#AEB4BF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M92,18 h56 a2,2 0 0 1 2,2 v30 a2,2 0 0 1 -2,2 h-56 a2,2 0 0 1 -2,-2 v-30 a2,2 0 0 1 2,-2 Z\" fill=\"#5B6270\"/><path d=\"M76,61 L164,61 L172,72 L68,72 Z\" fill=\"#8A8F98\"/><path d=\"M152,196 L150,168 L141,148\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M74,200 a46,17 0 1 0 92,0 a46,17 0 1 0 -92,0 Z\" fill=\"#C9CCD3\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"#E8E8E8\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M130.0,104.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M130.0,104.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M135.5,111.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M138,98 L138.0,88.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M138,77 L144.6,88.0 L131.4,88.0 Z\" fill=\"#FFD24A\"/></svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"#3A3D44\"/><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"none\" stroke=\"#AEB4BF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M92,18 h56 a2,2 0 0 1 2,2 v30 a2,2 0 0 1 -2,2 h-56 a2,2 0 0 1 -2,-2 v-30 a2,2 0 0 1 2,-2 Z\" fill=\"#5B6270\"/><path d=\"M76,61 L164,61 L172,72 L68,72 Z\" fill=\"#8A8F98\"/><path d=\"M152,196 L112,160 L52,152\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M74,200 a46,17 0 1 0 92,0 a46,17 0 1 0 -92,0 Z\" fill=\"#C9CCD3\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"#E8E8E8\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M38.0,108.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M38.0,108.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M43.5,115.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M112,126 L87.0,126.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M76,126 L87.0,119.4 L87.0,132.6 Z\" fill=\"#FFD24A\"/></svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"#3A3D44\"/><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"none\" stroke=\"#AEB4BF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M92,18 h56 a2,2 0 0 1 2,2 v30 a2,2 0 0 1 -2,2 h-56 a2,2 0 0 1 -2,-2 v-30 a2,2 0 0 1 2,-2 Z\" fill=\"#5B6270\"/><path d=\"M76,61 L164,61 L172,72 L68,72 Z\" fill=\"#8A8F98\"/><path d=\"M152,196 L178,172 L196,152\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M74,200 a46,17 0 1 0 92,0 a46,17 0 1 0 -92,0 Z\" fill=\"#C9CCD3\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"#E8E8E8\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M192.0,108.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M192.0,108.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M197.5,115.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M128,126 L159.0,126.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M170,126 L159.0,132.6 L159.0,119.4 Z\" fill=\"#FFD24A\"/></svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M108,112 h24 a12,12 0 0 1 12,12 v54 a12,12 0 0 1 -12,12 h-24 a12,12 0 0 1 -12,-12 v-54 a12,12 0 0 1 12,-12 Z\" fill=\"#C9CCD3\"/><path d=\"M108,186 h2 a8,8 0 0 1 8,8 v34 a8,8 0 0 1 -8,8 h-2 a8,8 0 0 1 -8,-8 v-34 a8,8 0 0 1 8,-8 Z\" fill=\"#C9CCD3\"/><path d=\"M130,186 h2 a8,8 0 0 1 8,8 v34 a8,8 0 0 1 -8,8 h-2 a8,8 0 0 1 -8,-8 v-34 a8,8 0 0 1 8,-8 Z\" fill=\"#C9CCD3\"/><path d=\"M103,90 a17,17 0 1 0 34,0 a17,17 0 1 0 -34,0 Z\" fill=\"#E8E8E8\"/><path d=\"M103,90 a17,17 0 1 0 34,0 a17,17 0 1 0 -34,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M140,122 L164,96 L172,70\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M166.0,20.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M166.0,20.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M171.5,27.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M206,78 L206.0,41.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M206,30 L212.6,41.0 L199.4,41.0 Z\" fill=\"#FFD24A\"/></svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M108,112 h24 a12,12 0 0 1 12,12 v54 a12,12 0 0 1 -12,12 h-24 a12,12 0 0 1 -12,-12 v-54 a12,12 0 0 1 12,-12 Z\" fill=\"#C9CCD3\"/><path d=\"M108,186 h2 a8,8 0 0 1 8,8 v34 a8,8 0 0 1 -8,8 h-2 a8,8 0 0 1 -8,-8 v-34 a8,8 0 0 1 8,-8 Z\" fill=\"#C9CCD3\"/><path d=\"M130,186 h2 a8,8 0 0 1 8,8 v34 a8,8 0 0 1 -8,8 h-2 a8,8 0 0 1 -8,-8 v-34 a8,8 0 0 1 8,-8 Z\" fill=\"#C9CCD3\"/><path d=\"M103,90 a17,17 0 1 0 34,0 a17,17 0 1 0 -34,0 Z\" fill=\"#E8E8E8\"/><path d=\"M103,90 a17,17 0 1 0 34,0 a17,17 0 1 0 -34,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M140,122 L164,156 L174,188\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M168.0,188.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M168.0,188.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M173.5,195.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M208,170 L208.0,215.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M208,226 L201.4,215.0 L214.6,215.0 Z\" fill=\"#FFD24A\"/></svg>"];
+const DIBUJO_PASO = window.DIBUJO_PASO;   // están en dibujos.js, que también usa la página del celular
 let paso = 0;          // 0 = sin calibración en curso
 let uPaso2 = 0;        // posición de la muñeca con el brazo a la izquierda (paso 2)
 let vPaso4 = 0;        // ídem con el brazo arriba (paso 4)
@@ -604,7 +605,7 @@ function avisoCamara() {
 // El celular muestra el mismo paso que la laptop y, si lo hay, el problema de la cámara.
 function avisarCelular() {
   avisoEnviado = paso === 0 ? AVISO_NINGUNO : avisoCamara();
-  fetch(`/paso?j=1&n=${paso}&e=${avisoEnviado}`);
+  servidor(`/paso?j=1&n=${paso}&e=${avisoEnviado}`);
 }
 
 // Durante la calibración se revisa la cámara varias veces por segundo.
@@ -803,13 +804,13 @@ function pintarJugadores() {
 }
 pintarJugadores();
 
-$('otroNombre').onclick = () => fetch('/otro');
+$('otroNombre').onclick = () => servidor('/otro');
 $('conClave').onchange = () => { $('claveCaja').style.display = $('conClave').checked ? '' : 'none'; };
 $('crearSala').onclick = () => {
   const clave = $('conClave').checked ? $('claveSala').value.trim() : '';
-  fetch('/crear?clave=' + encodeURIComponent(clave));
+  servidor('/crear?clave=' + encodeURIComponent(clave));
 };
-$('cerrarSala').onclick = () => fetch('/cerrar');
+$('cerrarSala').onclick = () => servidor('/cerrar');
 $('empezar').onclick = () => verPantalla('juego');
 // El botón de cámara de la sala es el mismo del panel: lo pulsa y copia su estado.
 $('salaCam').onclick = () => $('camBoton').click();
@@ -827,7 +828,7 @@ function avisarEstado() {
   const texto = ($('camEstado').textContent.startsWith('activa') ? 1 : 0) + ',' + (enJuego ? 1 : 0);
   if (texto === estadoEnviado) return;
   estadoEnviado = texto;
-  fetch('/estado?e=' + texto);
+  servidor('/estado?e=' + texto);
 }
 setInterval(avisarEstado, 500);
 
@@ -842,8 +843,8 @@ function mostrarQr(url) {
     .replace('fill="white"', 'fill="#cfe0c3"').replace('fill="black"', 'fill="#1f363d"');
 }
 
-const eventos = new EventSource('/eventos');
-eventos.onmessage = (e) => {
+// Todo lo que pasa en la sala llega aquí como un texto corto (antes lo mandaba el servidor local).
+function alEvento(e) {
   const p = e.data.split(',');
   if (p[0] === 's') {
     for (const id of ['sala', 'crearNombre', 'salaNombre']) $(id).textContent = p[1];
@@ -1477,6 +1478,207 @@ renderer.setAnimationLoop(() => {
   if (dt > 0) moverPelotas(dt);
   renderer.render(escena, camara);
 });
+
+// ---------- La sala vive en esta página ----------
+// En la versión en línea no hay servidor propio: esta página hace de anfitriona.
+//  · Supabase Realtime solo sirve para que el celular y la laptop se encuentren (unos segundos).
+//  · Después hablan directo entre ellos con WebRTC, por el WiFi, sin pasar por internet.
+// Los mensajes que antes llegaban del servidor ahora se generan aquí y entran por alEvento().
+const SUPABASE_URL = 'https://jbvgjqcpeykzjfceqkaj.supabase.co';
+const SUPABASE_CLAVE = 'sb_publishable_sNGIn9H4G-KK3mSfQOLSNA_nyXtI0jJ';   // clave pública: está hecha para ir en la página
+const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const RTC = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const MAX_JUGADORES = 2;
+const TIEMPO_SIN_DATOS_MS = 3000;
+const NOMBRES = [
+  'Daniel', 'Arantxa', 'Vasco', 'Camila', 'Mateo', 'Valeria', 'Diego', 'Lucía', 'Bruno', 'Renata',
+  'Gonzalo', 'Micaela', 'Rodrigo', 'Ximena', 'Joaquín', 'Isabel', 'Santiago', 'Paula', 'Emilio', 'Antonella',
+];
+
+let nombreSala = '';
+let codigoSala = '';              // lo que distingue esta sala de las de otras personas; va en el QR
+let claveSala = '';               // contraseña ('' = sin contraseña)
+let abierta = false;
+let estadoLaptop = '0,0';         // «cámara activa, práctica en curso», para los botones del celular
+let supa = null, canal = null;
+// celular -> { id, celular, nombre, ultimo, paso, aviso, pc, ctrl, listo }
+const jugadores = new Map();
+
+const emitir = (texto) => alEvento({ data: texto });
+const enviar = (j, texto) => { if (j.ctrl && j.ctrl.readyState === 'open') j.ctrl.send(texto); };
+const senal = (mensaje) => { if (canal) canal.send({ type: 'broadcast', event: 'm', payload: mensaje }); };
+
+function nombreAlAzar() {
+  const opciones = NOMBRES.filter((n) => n !== nombreSala);
+  return opciones[Math.floor(Math.random() * opciones.length)];
+}
+
+function idLibre() {
+  const usados = new Set([...jugadores.values()].map((j) => j.id));
+  for (let id = 1; id <= MAX_JUGADORES; id++) if (!usados.has(id)) return id;
+  return null;
+}
+
+function quitarJugador(j) {
+  if (jugadores.get(j.celular) !== j) return;
+  jugadores.delete(j.celular);
+  try { j.pc.close(); } catch (e) { /* ya estaba cerrada */ }
+  if (j.listo) emitir(`c,${j.id},0`);
+}
+
+// Espera a que la conexión termine de reunir sus direcciones (o a que pase el tiempo dado).
+function direccionesListas(pc, ms = 1500) {
+  return new Promise((resolver) => {
+    if (pc.iceGatheringState === 'complete') { resolver(); return; }
+    const mirar = () => { if (pc.iceGatheringState === 'complete') resolver(); };
+    pc.addEventListener('icegatheringstatechange', mirar);
+    setTimeout(resolver, ms);
+  });
+}
+
+// Lo que manda un celular ya conectado por su canal de control.
+function alControl(j, texto) {
+  j.ultimo = Date.now();
+  if (texto === 'cal') { emitir(`k,${j.id}`); return; }
+  if (texto === 'calx') { j.paso = 0; j.aviso = 0; emitir(`x,${j.id}`); return; }
+  if (texto === 'cam' || texto === 'empezar' || texto === 'sala') { emitir(`o,${j.id},${texto}`); return; }
+  if (texto.startsWith('nombre,')) {
+    j.nombre = texto.slice(7).replace(/[,\n\r]/g, ' ').trim().slice(0, 12);
+    emitir(`n,${j.id},${j.nombre}`);
+  }
+}
+
+// Un celular pide entrar: trae su oferta de conexión y la contraseña.
+async function aceptarCelular(m) {
+  if (!abierta) return;
+  if ((m.clave || '') !== claveSala) { senal({ t: 'no', para: m.de, motivo: 'clave' }); return; }
+  const anterior = jugadores.get(m.de);       // el mismo celular que vuelve a entrar conserva su número
+  const id = anterior ? anterior.id : idLibre();
+  if (id === null) { senal({ t: 'no', para: m.de, motivo: 'llena' }); return; }
+  if (anterior) { jugadores.delete(m.de); try { anterior.pc.close(); } catch (e) { /* nada */ } }
+
+  const pc = new RTCPeerConnection(RTC);
+  const j = { id, celular: m.de, nombre: anterior ? anterior.nombre : '', ultimo: Date.now(), paso: 0, aviso: 0, pc, ctrl: null, listo: !!(anterior && anterior.listo) };
+  jugadores.set(m.de, j);
+  pc.ondatachannel = ({ channel }) => {
+    if (channel.label === 'ctrl') {
+      j.ctrl = channel;
+      const abrir = () => {
+        j.ultimo = Date.now();
+        if (!j.listo) { j.listo = true; emitir(`c,${j.id},1`); }
+        enviar(j, `ok,${j.id},${j.paso},${j.aviso}`);
+        enviar(j, `e,${estadoLaptop}`);
+      };
+      if (channel.readyState === 'open') abrir(); else channel.onopen = abrir;
+      channel.onmessage = (e) => alControl(j, e.data);
+      channel.onclose = () => quitarJugador(j);
+    } else {
+      // Canal de sensores: cada mensaje es una lectura, igual que antes.
+      channel.onmessage = (e) => { j.ultimo = Date.now(); emitir(`d,${j.id},${e.data}`); };
+    }
+  };
+  pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' || pc.connectionState === 'closed') quitarJugador(j); };
+  try {
+    await pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
+    await pc.setLocalDescription(await pc.createAnswer());
+    await direccionesListas(pc);
+    senal({ t: 'respuesta', para: m.de, sdp: pc.localDescription.sdp });
+  } catch (err) {
+    quitarJugador(j);
+  }
+}
+
+// Mensajes de emparejamiento que llegan por Supabase.
+function alSenal(m) {
+  if (!m || !abierta) return;
+  if (m.t === 'info') senal({ t: 'info', para: m.de, sala: nombreSala, conClave: !!claveSala });
+  if (m.t === 'clave') senal({ t: 'clave', para: m.de, bien: (m.clave || '') === claveSala });
+  if (m.t === 'oferta') aceptarCelular(m);
+}
+
+async function conectarCanal() {
+  $('salaRed').textContent = 'Abriendo la sala en línea…';
+  try {
+    if (!supa) {
+      const { createClient } = await import(SUPABASE_JS);
+      supa = createClient(SUPABASE_URL, SUPABASE_CLAVE);
+    }
+    if (!abierta) return;
+    canal = supa.channel('pingphone-' + codigoSala, { config: { broadcast: { self: false } } });
+    canal.on('broadcast', { event: 'm' }, ({ payload }) => alSenal(payload));
+    canal.subscribe((estado) => {
+      $('salaRed').textContent = estado === 'SUBSCRIBED' ? '' : (estado === 'CLOSED' ? '' : 'Sin conexión con el servicio de salas (' + estado + '). Reintentando…');
+    });
+  } catch (err) {
+    $('salaRed').textContent = 'No se pudo abrir la sala en línea: ' + err.message;
+  }
+}
+
+function abrirSala(codigo) {
+  // Código de 6 caracteres, sin los que se confunden al leer (0/o, 1/l).
+  const letras = 'abcdefghijkmnpqrstuvwxyz23456789';
+  codigoSala = codigo || Array.from(crypto.getRandomValues(new Uint8Array(6)), (n) => letras[n % letras.length]).join('');
+  abierta = true;
+  // Se guarda en la pestaña: al recargar la página la sala sigue siendo la misma y los celulares vuelven a entrar.
+  try { sessionStorage.setItem('pingphone.sala', JSON.stringify({ nombre: nombreSala, codigo: codigoSala, clave: claveSala })); } catch (e) { /* sin almacenamiento */ }
+  emitir(`a,1,${claveSala ? 1 : 0}`);
+  emitir('u,' + new URL('mando.html?s=' + codigoSala, location.href).href);
+  conectarCanal();
+}
+
+function cerrarSala() {
+  for (const j of [...jugadores.values()]) { enviar(j, 'cerrada'); quitarJugador(j); }
+  if (canal && supa) supa.removeChannel(canal);
+  canal = null;
+  abierta = false;
+  claveSala = '';
+  try { sessionStorage.removeItem('pingphone.sala'); } catch (e) { /* sin almacenamiento */ }
+  emitir('a,0,0');
+}
+
+// Las órdenes que la página le daba al servidor local, ahora atendidas aquí mismo.
+function servidor(ruta) {
+  const url = new URL(ruta, location.href);
+  const dato = (nombre) => url.searchParams.get(nombre) || '';
+  const accion = url.pathname.split('/').pop();
+  if (accion === 'otro' && !abierta) { nombreSala = nombreAlAzar(); emitir('s,' + nombreSala); }
+  if (accion === 'crear' && !abierta) { claveSala = dato('clave').trim().slice(0, 30); abrirSala(); }
+  if (accion === 'cerrar') cerrarSala();
+  if (accion === 'estado') {
+    estadoLaptop = /^[01],[01]$/.test(dato('e')) ? dato('e') : '0,0';
+    for (const j of jugadores.values()) enviar(j, `e,${estadoLaptop}`);
+  }
+  if (accion === 'vibrar') {
+    const ms = Math.min(Math.max(Number(dato('ms')) || 60, 10), 500);
+    for (const j of jugadores.values()) if (j.id === Number(dato('j'))) enviar(j, `v,${ms}`);
+  }
+  if (accion === 'paso') {
+    for (const j of jugadores.values()) {
+      if (j.id !== Number(dato('j'))) continue;
+      j.paso = Number(dato('n')) || 0;
+      j.aviso = Number(dato('e')) || 0;
+      enviar(j, `p,${j.paso},${j.aviso}`);
+    }
+  }
+}
+
+// Cada segundo: confirma a cada celular su número y descarta los que callaron.
+setInterval(() => {
+  const ahora = Date.now();
+  for (const j of [...jugadores.values()]) {
+    if (ahora - j.ultimo > (j.listo ? TIEMPO_SIN_DATOS_MS : 12000)) quitarJugador(j);
+    else if (j.listo) { enviar(j, `ok,${j.id},${j.paso},${j.aviso}`); enviar(j, `e,${estadoLaptop}`); }
+  }
+}, 1000);
+
+// Arranque: si esta pestaña ya tenía una sala abierta (se recargó la página), se reabre la misma.
+{
+  let guardada = null;
+  try { guardada = JSON.parse(sessionStorage.getItem('pingphone.sala') || 'null'); } catch (e) { /* nada */ }
+  nombreSala = guardada ? guardada.nombre : nombreAlAzar();
+  emitir('s,' + nombreSala);
+  if (guardada) { claveSala = guardada.clave || ''; abrirSala(guardada.codigo); } else emitir('a,0,0');
+}
 </script>
 </body>
 </html>

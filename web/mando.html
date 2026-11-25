@@ -63,12 +63,7 @@
   </div>
   <div class="error" id="falloEntrar" hidden></div>
   <div class="tarjeta">
-    <div class="fila"><h2>Con la app</h2><div class="mejor">Se juega mejor</div></div>
-    <p>Sensores más precisos y vibración al golpear. Solo Android.</p>
-    <button class="apagado" disabled>Descargar la app · pronto</button>
-  </div>
-  <div class="tarjeta">
-    <h2>Desde este navegador</h2>
+    <h2>Tu celular es la paleta</h2>
     <p>Sin instalar nada. Sirve en iPhone y Android. En iPhone el celular no vibra.</p>
     <button class="rojo titulo" id="jugar">Jugar aquí</button>
   </div>
@@ -116,37 +111,83 @@
   <button class="enlace" id="calSalir">Salir de la calibración</button>
 </div>
 
-<script>
+<script src="dibujos.js"></script>
+<script type="module">
 const $ = (id) => document.getElementById(id);
 const AVISOS = ['', 'La cámara de la laptop está apagada.', 'La cámara no ve a nadie.', 'La cámara no ve tu muñeca.'];
-let dibujos = [];
-let ws = null, jugando = false, miId = 0, nombreEnviado = false;
+const dibujos = window.DIBUJO_PASO || [];
+let jugando = false, miId = 0, nombreEnviado = false;
+
+// ---------- Encontrar la sala ----------
+// Supabase Realtime solo sirve para encontrarse con la laptop; los sensores van directo por WebRTC.
+const SUPABASE_URL = 'https://jbvgjqcpeykzjfceqkaj.supabase.co';
+const SUPABASE_CLAVE = 'sb_publishable_sNGIn9H4G-KK3mSfQOLSNA_nyXtI0jJ';   // clave pública: está hecha para ir en la página
+const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const RTC = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const codigoSala = (new URLSearchParams(location.search).get('s') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+// Identidad de este celular en la sala: se conserva al recargar, para volver con el mismo número.
+let yo = '';
+try { yo = sessionStorage.getItem('pingphone.yo') || ''; } catch (e) { /* sin almacenamiento */ }
+if (!yo) { yo = Math.random().toString(36).slice(2, 10); try { sessionStorage.setItem('pingphone.yo', yo); } catch (e) { /* nada */ } }
+
+let canal = null, canalListo = false;
+let pc = null, datos = null, ctrl = null;
+const esperas = {};     // tipo de mensaje -> función que espera esa respuesta de la laptop
+const senal = (mensaje) => { if (canal && canalListo) canal.send({ type: 'broadcast', event: 'm', payload: { ...mensaje, de: yo } }); };
+
+// Pregunta algo a la laptop y espera su respuesta (null si no contesta a tiempo).
+function preguntar(mensaje, tipoRespuesta, ms = 3500) {
+  return new Promise((resolver) => {
+    const fin = (r) => { delete esperas[tipoRespuesta]; clearTimeout(reloj); resolver(r); };
+    const reloj = setTimeout(() => fin(null), ms);
+    esperas[tipoRespuesta] = fin;
+    senal(mensaje);
+  });
+}
+
+function falloEntrar(texto) { $('falloEntrar').textContent = texto; $('falloEntrar').hidden = !texto; }
+
+async function buscarSala() {
+  if (!codigoSala) { $('sala1').textContent = '—'; falloEntrar('Abre esta página escaneando el código QR que muestra la laptop.'); return; }
+  try {
+    const { createClient } = await import(SUPABASE_JS);
+    const supa = createClient(SUPABASE_URL, SUPABASE_CLAVE);
+    canal = supa.channel('pingphone-' + codigoSala, { config: { broadcast: { self: false } } });
+    canal.on('broadcast', { event: 'm' }, ({ payload }) => {
+      if (!payload || payload.para !== yo) return;
+      if (payload.t === 'no' && esperas.respuesta) { esperas.respuesta(payload); return; }
+      if (esperas[payload.t]) esperas[payload.t](payload);
+    });
+    await new Promise((resolver) => canal.subscribe((estado) => { canalListo = estado === 'SUBSCRIBED'; if (canalListo) resolver(); }));
+  } catch (err) {
+    $('sala1').textContent = '—';
+    falloEntrar('No se pudo conectar con el servicio de salas: ' + err.message);
+    return;
+  }
+  // La laptop puede tardar un momento en abrir su sala: se pregunta hasta tres veces.
+  let info = null;
+  for (let i = 0; i < 3 && !info; i++) info = await preguntar({ t: 'info' }, 'info');
+  if (!info) { $('sala1').textContent = '—'; falloEntrar('No hay ninguna sala abierta con este código. Ábrela en la laptop y recarga esta página.'); return; }
+  $('sala1').textContent = info.sala;
+  $('sala2').textContent = 'Sala ' + info.sala;
+  $('campoClave').hidden = !info.conClave;
+  $('jugar').disabled = false;
+}
+$('jugar').disabled = true;
+buscarSala();
 let hayOrientacion = false, hayMovimiento = false;
 const q = [0, 0, 0, 1];   // orientación del celular (x, y, z, w), en los mismos ejes que la app
 
 try { $('nombre').value = localStorage.getItem('pingphone.nombre') || ''; } catch (e) { /* sin almacenamiento */ }
 
-fetch('/info').then((r) => r.json()).then((info) => {
-  $('sala1').textContent = info.sala;
-  $('sala2').textContent = 'Sala ' + info.sala;
-  dibujos = info.dibujos || [];
-  $('campoClave').hidden = !info.conClave;
-  if (!info.abierta) {
-    $('falloEntrar').textContent = 'La sala todavía no está abierta en la laptop. Ábrela y recarga esta página.';
-    $('falloEntrar').hidden = false;
-  }
-}).catch(() => { $('sala1').textContent = 'sin conexión'; });
-
 function miNombre() { return $('nombre').value.trim().slice(0, 12); }
 
 $('jugar').onclick = async () => {
-  $('falloEntrar').hidden = true;
-  let entra = false;
-  try { entra = (await fetch('/entrar?clave=' + encodeURIComponent($('clave').value))).ok; } catch (e) { /* sin conexión */ }
-  if (!entra) {
-    $('falloEntrar').textContent = $('campoClave').hidden ? 'No se pudo entrar: la sala no está abierta.' : 'Esa no es la contraseña.';
-    $('falloEntrar').hidden = false;
-    return;
+  falloEntrar('');
+  if (!$('campoClave').hidden) {
+    const r = await preguntar({ t: 'clave', clave: $('clave').value }, 'clave');
+    if (!r) { falloEntrar('La laptop no contesta. ¿Sigue abierta la sala?'); return; }
+    if (!r.bien) { falloEntrar('Esa no es la contraseña.'); return; }
   }
   try { localStorage.setItem('pingphone.nombre', miNombre()); } catch (e) { /* sin almacenamiento */ }
   $('quien').textContent = miNombre() || 'Jugador';
@@ -180,8 +221,8 @@ function alMover(e) {
   const a = e.acceleration;
   const ax = a && a.x !== null ? a.x : 0, ay = a && a.y !== null ? a.y : 0, az = a && a.z !== null ? a.z : 0;
   if (a && a.x !== null) hayMovimiento = true;
-  if (ws && ws.readyState === 1) {
-    ws.send(q[0].toFixed(5) + ',' + q[1].toFixed(5) + ',' + q[2].toFixed(5) + ',' + q[3].toFixed(5) + ','
+  if (datos && datos.readyState === 'open') {
+    datos.send(q[0].toFixed(5) + ',' + q[1].toFixed(5) + ',' + q[2].toFixed(5) + ',' + q[3].toFixed(5) + ','
       + ax.toFixed(3) + ',' + ay.toFixed(3) + ',' + az.toFixed(3) + ',' + e.timeStamp.toFixed(1));
   }
 }
@@ -232,39 +273,88 @@ function ponerEstado(texto, bien) {
   $('punto').classList.toggle('mal', !bien);
 }
 
-function conectar() {
+// Espera a que la conexión termine de reunir sus direcciones (o a que pase el tiempo dado).
+function direccionesListas(con, ms = 1500) {
+  return new Promise((resolver) => {
+    if (con.iceGatheringState === 'complete') { resolver(); return; }
+    con.addEventListener('icegatheringstatechange', () => { if (con.iceGatheringState === 'complete') resolver(); });
+    setTimeout(resolver, ms);
+  });
+}
+
+// Lo que manda la laptop por el canal de control.
+function alMensaje(texto) {
+  const p = String(texto).split(',');
+  if (p[0] === 'cerrada') { jugando = false; ponerEstado('La laptop cerró la sala', false); return; }
+  if (p[0] === 'v') { if (navigator.vibrate) navigator.vibrate(Number(p[1]) || 60); return; }
+  if (p[0] === 'ok') {
+    miId = Number(p[1]);
+    ponerEstado('Conectado · jugador ' + miId, true);
+    if (!nombreEnviado && miNombre()) { mandar('nombre,' + miNombre()); nombreEnviado = true; }
+    mostrarPaso(Number(p[2]) || 0, Number(p[3]) || 0);
+    return;
+  }
+  if (p[0] === 'p') mostrarPaso(Number(p[1]) || 0, Number(p[2]) || 0);
+  if (p[0] === 'e') {
+    // Estado de la laptop: cámara activa y práctica en curso.
+    const camara = p[1] === '1', juego = p[2] === '1';
+    $('jefe').hidden = miId !== 1;
+    $('camara').hidden = camara;
+    $('camLista').hidden = !camara;
+    $('empezar').hidden = juego;
+    $('volver').hidden = !juego;
+  }
+}
+
+let intento = 0;
+function reintentar(ms) {
+  const este = intento;
+  setTimeout(() => { if (jugando && este === intento) conectar(); }, ms);
+}
+
+// Conexión directa con la laptop (WebRTC). Dos canales: uno rápido para los sensores,
+// que no reenvía lo que se pierde, y otro seguro para las órdenes.
+async function conectar() {
+  intento++;
+  const este = intento;
+  if (pc) { try { pc.close(); } catch (e) { /* ya cerrada */ } }
   ponerEstado('Conectando…', false);
   nombreEnviado = false;
-  ws = new WebSocket('wss://' + location.host + '/ws');
-  ws.onopen = () => ws.send('entrar,' + $('clave').value);
-  ws.onmessage = (e) => {
-    const p = String(e.data).split(',');
-    if (p[0] === 'cerrada' || p[0] === 'clave') { jugando = false; ponerEstado(p[0] === 'clave' ? 'Contraseña incorrecta' : 'La laptop cerró la sala', false); return; }
-    if (p[0] === 'llena') { ponerEstado('La sala está llena', false); return; }
-    if (p[0] === 'v') { if (navigator.vibrate) navigator.vibrate(Number(p[1]) || 60); return; }
-    if (p[0] === 'ok') {
-      miId = Number(p[1]);
-      ponerEstado('Conectado · jugador ' + miId, true);
-      if (!nombreEnviado && miNombre()) { ws.send('nombre,' + miNombre()); nombreEnviado = true; }
-      mostrarPaso(Number(p[2]) || 0, Number(p[3]) || 0);
+  const con = new RTCPeerConnection(RTC);
+  pc = con;
+  datos = con.createDataChannel('datos', { ordered: false, maxRetransmits: 0 });
+  ctrl = con.createDataChannel('ctrl');
+  ctrl.onmessage = (e) => alMensaje(e.data);
+  const caida = () => {
+    if (!jugando || este !== intento) return;
+    ponerEstado('Sin conexión, reintentando…', false);
+    reintentar(1000);
+  };
+  ctrl.onclose = caida;
+  con.onconnectionstatechange = () => { if (con.connectionState === 'failed') caida(); };
+  try {
+    await con.setLocalDescription(await con.createOffer());
+    await direccionesListas(con);
+    const r = await preguntar({ t: 'oferta', sdp: con.localDescription.sdp, clave: $('clave').value }, 'respuesta', 6000);
+    if (este !== intento) return;
+    if (!r) { ponerEstado('La laptop no contesta, reintentando…', false); reintentar(1500); return; }
+    if (r.t === 'no') {
+      if (r.motivo === 'clave') { jugando = false; ponerEstado('Contraseña incorrecta', false); return; }
+      ponerEstado('La sala está llena', false);
+      reintentar(3000);
       return;
     }
-    if (p[0] === 'p') mostrarPaso(Number(p[1]) || 0, Number(p[2]) || 0);
-    if (p[0] === 'e') {
-      // Estado de la laptop: cámara activa y práctica en curso.
-      const camara = p[1] === '1', juego = p[2] === '1';
-      $('jefe').hidden = miId !== 1;
-      $('camara').hidden = camara;
-      $('camLista').hidden = !camara;
-      $('empezar').hidden = juego;
-      $('volver').hidden = !juego;
-    }
-  };
-  ws.onclose = () => {
-    if (!jugando) return;   // la sala se cerró o la contraseña no era: no se reintenta
-    ponerEstado('Sin conexión, reintentando…', false);
-    setTimeout(conectar, 1000);
-  };
+    await con.setRemoteDescription({ type: 'answer', sdp: r.sdp });
+    // Si en unos segundos no abre, la red no deja hablar directo a los dos equipos.
+    setTimeout(() => {
+      if (este === intento && jugando && ctrl.readyState !== 'open') {
+        ponerEstado('No se logra la conexión directa. ¿Están en el mismo WiFi?', false);
+        reintentar(2000);
+      }
+    }, 8000);
+  } catch (err) {
+    if (este === intento) { ponerEstado('Error al conectar: ' + err.message, false); reintentar(2000); }
+  }
 }
 
 // ---------- Calibración ----------
@@ -280,7 +370,7 @@ function mostrarPaso(paso, aviso) {
   $('calAviso').textContent = AVISOS[aviso] || '';
   $('calAviso').hidden = !aviso;
 }
-function mandar(texto) { if (ws && ws.readyState === 1) ws.send(texto); }
+function mandar(texto) { if (ctrl && ctrl.readyState === 'open') ctrl.send(texto); }
 $('calibrar').onclick = () => mandar('cal');
 $('empezar').onclick = () => mandar('empezar');
 $('volver').onclick = () => mandar('sala');
