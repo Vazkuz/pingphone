@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1f363d">
+<title>Ping Phone</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<style>
+  :root { --fondo: #1f363d; --texto: #cfe0c3; --sec: #9ec1a3; --linea: #40798c; --tarjeta: #27444d; --rojo: #d8382f; --bola: #ffa726; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--fondo); color: var(--texto);
+               font-family: Figtree, system-ui, sans-serif; -webkit-text-size-adjust: 100%; }
+  .titulo { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; }
+  .pantalla { min-height: 100dvh; padding: 26px 22px; display: flex; flex-direction: column; gap: 18px; }
+  .marca { font-size: 24px; letter-spacing: -0.01em; }
+  .marca span { color: var(--bola); }
+  .sobre { font-size: 16px; font-weight: 600; color: var(--sec); }
+  h1 { margin: 0; font-size: 52px; line-height: 0.95; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+  h2 { margin: 0; font-size: 22px; font-weight: 600; }
+  p { margin: 0; font-size: 16px; line-height: 1.45; }
+  label { font-size: 15px; font-weight: 600; color: var(--sec); }
+  input { height: 52px; padding: 0 16px; color: #fff; background: var(--tarjeta); border: 2px solid var(--linea);
+          border-radius: 8px; font: 500 20px Figtree, system-ui, sans-serif; width: 100%; }
+  input::placeholder { color: var(--sec); font-style: italic; }
+  .campo { display: flex; flex-direction: column; gap: 8px; }
+  .tarjeta { display: flex; flex-direction: column; gap: 14px; padding: 20px; background: var(--tarjeta); border-radius: 10px; }
+  .fila { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .mejor { font-size: 14px; font-weight: 600; color: var(--bola); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .rojo { height: 60px; background: var(--rojo); color: #fff; border: 0; border-radius: 8px; font-size: 22px; }
+  .borde { height: 60px; background: transparent; color: var(--texto); border: 2px solid var(--texto); border-radius: 8px; font-size: 22px; }
+  .apagado { height: 52px; font: 600 17px Figtree, system-ui, sans-serif; color: var(--sec); background: transparent;
+             border: 2px solid var(--linea); border-radius: 8px; }
+  .enlace { background: none; border: 0; padding: 10px 0; font-size: 15px; text-decoration: underline; }
+  .estado { display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 600; }
+  .punto { width: 14px; height: 14px; border-radius: 50%; background: #70a9a1; }
+  .punto.mal { background: var(--rojo); }
+  .pie { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--linea); font-size: 14px; line-height: 1.45; color: var(--sec); }
+  .error { color: var(--bola); font-size: 16px; line-height: 1.45; }
+  #cal { position: fixed; inset: 0; background: var(--fondo); padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  #calDibujo { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  #calDibujo svg { max-width: 100%; max-height: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- 1. Entrar: nombre y cómo jugar -->
+<div class="pantalla" id="entrar">
+  <div class="marca titulo">Ping <span>Phone</span></div>
+  <div>
+    <div class="sobre">Vas a entrar a la sala</div>
+    <h1 class="titulo" id="sala1">…</h1>
+  </div>
+  <div class="campo">
+    <label for="nombre">Tu nombre</label>
+    <input id="nombre" placeholder="Cómo te llamas" maxlength="12" autocomplete="off">
+  </div>
+  <div class="campo" id="campoClave" hidden>
+    <label for="clave">Contraseña de la sala</label>
+    <input id="clave" placeholder="Contraseña" autocomplete="off">
+  </div>
+  <div class="error" id="falloEntrar" hidden></div>
+  <div class="tarjeta">
+    <div class="fila"><h2>Con la app</h2><div class="mejor">Se juega mejor</div></div>
+    <p>Sensores más precisos y vibración al golpear. Solo Android.</p>
+    <button class="apagado" disabled>Descargar la app · pronto</button>
+  </div>
+  <div class="tarjeta">
+    <h2>Desde este navegador</h2>
+    <p>Sin instalar nada. Sirve en iPhone y Android. En iPhone el celular no vibra.</p>
+    <button class="rojo titulo" id="jugar">Jugar aquí</button>
+  </div>
+</div>
+
+<!-- 2. Mando -->
+<div class="pantalla" id="mando" hidden>
+  <div class="fila">
+    <div class="marca titulo">Ping <span>Phone</span></div>
+    <button class="enlace" id="salir">Salir</button>
+  </div>
+  <div>
+    <div class="sobre" id="sala2">Sala</div>
+    <h1 class="titulo" id="quien">Jugador</h1>
+  </div>
+
+  <div id="pedir" style="display:flex;flex-direction:column;gap:16px">
+    <p style="font-size:18px">Falta un paso: tu celular va a pedirte permiso para usar el sensor de movimiento. Sin eso no hay paleta.</p>
+    <button class="rojo titulo" id="activar" style="height:64px">Activar sensores</button>
+    <div class="error" id="fallo" hidden></div>
+  </div>
+
+  <div id="activo" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="estado"><div class="punto" id="punto"></div><span id="estado">Conectando…</span></div>
+    <!-- Solo el jugador 1 maneja la laptop desde su celular. -->
+    <div id="jefe" hidden style="display:flex;flex-direction:column;gap:12px">
+      <button class="rojo titulo" id="empezar" style="height:64px">Empezar práctica</button>
+      <button class="borde titulo" id="volver" style="height:56px" hidden>Volver a la sala</button>
+      <button class="borde titulo" id="camara" style="height:56px">Activar cámara</button>
+      <p id="camLista" hidden style="color:var(--sec)">La cámara de la laptop está activada.</p>
+    </div>
+    <button class="borde titulo" id="calibrar" style="height:64px">Calibrar</button>
+    <div class="error" id="aviso2" hidden></div>
+  </div>
+
+  <div class="pie">No bloquees la pantalla mientras juegas: el navegador deja de mandar el sensor.</div>
+</div>
+
+<!-- 3. Calibración a pantalla completa (los mismos dibujos que la app) -->
+<div id="cal" hidden>
+  <div class="sobre" id="calPaso">Calibración</div>
+  <div id="calDibujo"></div>
+  <div class="error" id="calAviso" hidden></div>
+  <button class="rojo titulo" id="calOk" style="height:72px">Confirmar posición</button>
+  <button class="enlace" id="calSalir">Salir de la calibración</button>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const AVISOS = ['', 'La cámara de la laptop está apagada.', 'La cámara no ve a nadie.', 'La cámara no ve tu muñeca.'];
+let dibujos = [];
+let ws = null, jugando = false, miId = 0, nombreEnviado = false;
+let hayOrientacion = false, hayMovimiento = false;
+const q = [0, 0, 0, 1];   // orientación del celular (x, y, z, w), en los mismos ejes que la app
+
+try { $('nombre').value = localStorage.getItem('pingphone.nombre') || ''; } catch (e) { /* sin almacenamiento */ }
+
+fetch('/info').then((r) => r.json()).then((info) => {
+  $('sala1').textContent = info.sala;
+  $('sala2').textContent = 'Sala ' + info.sala;
+  dibujos = info.dibujos || [];
+  $('campoClave').hidden = !info.conClave;
+  if (!info.abierta) {
+    $('falloEntrar').textContent = 'La sala todavía no está abierta en la laptop. Ábrela y recarga esta página.';
+    $('falloEntrar').hidden = false;
+  }
+}).catch(() => { $('sala1').textContent = 'sin conexión'; });
+
+function miNombre() { return $('nombre').value.trim().slice(0, 12); }
+
+$('jugar').onclick = async () => {
+  $('falloEntrar').hidden = true;
+  let entra = false;
+  try { entra = (await fetch('/entrar?clave=' + encodeURIComponent($('clave').value))).ok; } catch (e) { /* sin conexión */ }
+  if (!entra) {
+    $('falloEntrar').textContent = $('campoClave').hidden ? 'No se pudo entrar: la sala no está abierta.' : 'Esa no es la contraseña.';
+    $('falloEntrar').hidden = false;
+    return;
+  }
+  try { localStorage.setItem('pingphone.nombre', miNombre()); } catch (e) { /* sin almacenamiento */ }
+  $('quien').textContent = miNombre() || 'Jugador';
+  $('entrar').hidden = true;
+  $('mando').hidden = false;
+};
+
+$('salir').onclick = () => { location.reload(); };
+
+function fallo(texto) { $('fallo').textContent = texto; $('fallo').hidden = false; }
+
+// ---------- Sensores ----------
+// Orientación: los ángulos del navegador (alpha, beta, gamma) pasados a cuaternión,
+// con la fórmula de la especificación del W3C. Queda en los ejes este-norte-arriba, como en la app.
+function alOrientar(e) {
+  if (e.alpha === null || e.beta === null || e.gamma === null) return;
+  hayOrientacion = true;
+  const g = Math.PI / 180;
+  const x = e.beta * g / 2, y = e.gamma * g / 2, z = e.alpha * g / 2;
+  const cX = Math.cos(x), cY = Math.cos(y), cZ = Math.cos(z);
+  const sX = Math.sin(x), sY = Math.sin(y), sZ = Math.sin(z);
+  q[0] = sX * cY * cZ - cX * sY * sZ;
+  q[1] = cX * sY * cZ + sX * cY * sZ;
+  q[2] = cX * cY * sZ + sX * sY * cZ;
+  q[3] = cX * cY * cZ - sX * sY * sZ;
+}
+
+// Movimiento: aceleración sin gravedad en los ejes del celular. Cada lectura se manda
+// con su instante, igual que hace la app.
+function alMover(e) {
+  const a = e.acceleration;
+  const ax = a && a.x !== null ? a.x : 0, ay = a && a.y !== null ? a.y : 0, az = a && a.z !== null ? a.z : 0;
+  if (a && a.x !== null) hayMovimiento = true;
+  if (ws && ws.readyState === 1) {
+    ws.send(q[0].toFixed(5) + ',' + q[1].toFixed(5) + ',' + q[2].toFixed(5) + ',' + q[3].toFixed(5) + ','
+      + ax.toFixed(3) + ',' + ay.toFixed(3) + ',' + az.toFixed(3) + ',' + e.timeStamp.toFixed(1));
+  }
+}
+
+async function pedirPermiso(Clase) {
+  if (typeof Clase === 'undefined' || typeof Clase.requestPermission !== 'function') return true;   // Android: no hace falta
+  return (await Clase.requestPermission()) === 'granted';
+}
+
+$('activar').onclick = async () => {
+  $('fallo').hidden = true;
+  if (!window.isSecureContext) { fallo('Esta página no se abrió por HTTPS: el navegador no entrega los sensores.'); return; }
+  if (typeof DeviceMotionEvent === 'undefined') { fallo('Este navegador no tiene sensor de movimiento.'); return; }
+  try {
+    const ok = (await pedirPermiso(DeviceMotionEvent)) && (await pedirPermiso(window.DeviceOrientationEvent));
+    if (!ok) { fallo('No diste permiso para el sensor. Recarga la página y acéptalo.'); return; }
+  } catch (err) {
+    fallo('El celular no dejó pedir el permiso: ' + err.message);
+    return;
+  }
+  window.addEventListener('deviceorientation', alOrientar);
+  window.addEventListener('devicemotion', alMover);
+  jugando = true;
+  $('pedir').style.display = 'none';
+  $('activo').hidden = false;
+  conectar();
+  mantenerDespierto();
+  // Si en dos segundos no llegó nada, el sensor no está funcionando.
+  setTimeout(() => {
+    if (!hayMovimiento || !hayOrientacion) {
+      $('aviso2').textContent = !hayMovimiento && !hayOrientacion
+        ? 'El navegador no está entregando ningún sensor.'
+        : (!hayMovimiento ? 'Llega la orientación pero no la aceleración.' : 'Llega la aceleración pero no la orientación.');
+      $('aviso2').hidden = false;
+    }
+  }, 2000);
+};
+
+// La pantalla no debe apagarse mientras se juega.
+async function mantenerDespierto() {
+  try { if (navigator.wakeLock) await navigator.wakeLock.request('screen'); } catch (e) { /* no disponible */ }
+}
+document.addEventListener('visibilitychange', () => { if (jugando && !document.hidden) mantenerDespierto(); });
+
+// ---------- Conexión con la laptop ----------
+function ponerEstado(texto, bien) {
+  $('estado').textContent = texto;
+  $('punto').classList.toggle('mal', !bien);
+}
+
+function conectar() {
+  ponerEstado('Conectando…', false);
+  nombreEnviado = false;
+  ws = new WebSocket('wss://' + location.host + '/ws');
+  ws.onopen = () => ws.send('entrar,' + $('clave').value);
+  ws.onmessage = (e) => {
+    const p = String(e.data).split(',');
+    if (p[0] === 'cerrada' || p[0] === 'clave') { jugando = false; ponerEstado(p[0] === 'clave' ? 'Contraseña incorrecta' : 'La laptop cerró la sala', false); return; }
+    if (p[0] === 'llena') { ponerEstado('La sala está llena', false); return; }
+    if (p[0] === 'v') { if (navigator.vibrate) navigator.vibrate(Number(p[1]) || 60); return; }
+    if (p[0] === 'ok') {
+      miId = Number(p[1]);
+      ponerEstado('Conectado · jugador ' + miId, true);
+      if (!nombreEnviado && miNombre()) { ws.send('nombre,' + miNombre()); nombreEnviado = true; }
+      mostrarPaso(Number(p[2]) || 0, Number(p[3]) || 0);
+      return;
+    }
+    if (p[0] === 'p') mostrarPaso(Number(p[1]) || 0, Number(p[2]) || 0);
+    if (p[0] === 'e') {
+      // Estado de la laptop: cámara activa y práctica en curso.
+      const camara = p[1] === '1', juego = p[2] === '1';
+      $('jefe').hidden = miId !== 1;
+      $('camara').hidden = camara;
+      $('camLista').hidden = !camara;
+      $('empezar').hidden = juego;
+      $('volver').hidden = !juego;
+    }
+  };
+  ws.onclose = () => {
+    if (!jugando) return;   // la sala se cerró o la contraseña no era: no se reintenta
+    ponerEstado('Sin conexión, reintentando…', false);
+    setTimeout(conectar, 1000);
+  };
+}
+
+// ---------- Calibración ----------
+let pasoVisto = -1;
+function mostrarPaso(paso, aviso) {
+  $('cal').hidden = paso === 0;
+  if (paso === 0) { pasoVisto = 0; return; }
+  if (paso !== pasoVisto) {
+    pasoVisto = paso;
+    $('calPaso').textContent = 'Calibración · paso ' + paso + ' de 5';
+    $('calDibujo').innerHTML = dibujos[paso] || '';
+  }
+  $('calAviso').textContent = AVISOS[aviso] || '';
+  $('calAviso').hidden = !aviso;
+}
+function mandar(texto) { if (ws && ws.readyState === 1) ws.send(texto); }
+$('calibrar').onclick = () => mandar('cal');
+$('empezar').onclick = () => mandar('empezar');
+$('volver').onclick = () => mandar('sala');
+$('camara').onclick = () => mandar('cam');
+$('calOk').onclick = () => mandar('cal');
+$('calSalir').onclick = () => mandar('calx');
+</script>
+</body>
+</html>

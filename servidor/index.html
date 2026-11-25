@@ -1,0 +1,1481 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ping Phone</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #14161a; color: #e8e8e8; font-family: system-ui, sans-serif; overflow: hidden; }
+  #panel { position: fixed; top: 16px; left: 16px; line-height: 1.6; }
+  #panel b { display: inline-block; min-width: 11.5em; font-weight: 600; }
+  button { margin-top: 10px; padding: 8px 14px; font-size: 15px; cursor: pointer; }
+  #cerrarPanel { margin: 0 0 10px 0; }
+  #abrirPanel { position: fixed; top: 16px; left: 16px; margin: 0; }
+  .fila { display: flex; align-items: center; gap: 8px; }
+  .fila button { margin-top: 4px; width: 42px; font-size: 20px; padding: 4px 0; }
+  .fila input { width: 200px; }
+  #guia { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(900px, 90vw);
+          background: rgba(20,22,26,.95); border: 2px solid #2f6fed; border-radius: 14px; padding: 24px 28px;
+          display: flex; align-items: center; gap: 28px; }
+  #guiaDibujo { flex: 0 0 42%; text-align: center; font-size: 14px; opacity: .9; }
+  #guiaDibujo svg { width: 100%; display: block; }
+  #guiaDibujo:empty { display: none; }
+  #guiaLado { flex: 1; }
+  #guiaTitulo { font-size: 18px; color: #8fb4ff; margin-bottom: 8px; }
+  #guiaTexto { font-size: 30px; line-height: 1.25; }
+  #guiaPie { font-size: 16px; opacity: .75; margin-top: 14px; }
+  /* Lo que ve la cámara, arriba a la derecha (espejado, como un espejo). */
+  #vistaCamara { position: fixed; top: 16px; right: 16px; width: 280px; border: 2px solid #3a3d44; border-radius: 10px;
+                 overflow: hidden; background: #000; line-height: 0; }
+  #vistaCamara video { width: 100%; display: block; transform: scaleX(-1); }
+  #vistaPunto { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%;
+                background: #4ade80; border: 2px solid #fff; display: none; z-index: 1; }
+  #contador { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); font-size: 30px; font-weight: 800; color: #cfe0c3; font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+              background: rgba(31,54,61,.88); padding: 2px 16px; border-radius: 8px; }
+  #resultado:empty { display: none; }
+  #resultado { background: rgba(31,54,61,.88); padding: 2px 14px; border-radius: 8px; position: fixed; top: 66px; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: 600; font-family: Figtree, system-ui, sans-serif; }
+  /* Pantallas de sala (crear y dentro de la sala): tapan el juego hasta que se empieza. */
+  .pantalla { position: fixed; inset: 0; z-index: 20; overflow: auto; box-sizing: border-box; background: #1f363d; color: #cfe0c3;
+              font-family: Figtree, system-ui, sans-serif; padding: 28px 5% 40px; display: flex; flex-direction: column; }
+  .pantalla button { margin: 0; font-family: inherit; }
+  .pantalla a { color: #cfe0c3; }
+  .pantalla a:hover { color: #fff; }
+  .titular { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; }
+  .marca { font-size: 28px; letter-spacing: -0.01em; }
+  .marca span { color: #ffa726; }
+  .cabeza { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 12px; }
+  .sec { color: #9ec1a3; }
+  .cuerpo { display: flex; flex-wrap: wrap; gap: 48px; }
+  .columna { display: flex; flex-direction: column; }
+  .pantalla .rojo { align-self: flex-start; height: 58px; padding: 0 34px; background: #d8382f; color: #fff; border: 0; border-radius: 8px; font-size: 22px; cursor: pointer; }
+  .pantalla .rojo:disabled { opacity: .5; cursor: default; }
+  .pantalla .borde { height: 52px; padding: 0 18px; font: 500 16px Figtree, system-ui, sans-serif; color: #cfe0c3; background: transparent; border: 2px solid #40798c; border-radius: 8px; cursor: pointer; }
+  .pantalla .borde:disabled { opacity: .55; cursor: default; }
+  .pantalla .enlace { background: none; border: 0; padding: 0; font-size: 15px; color: #cfe0c3; text-decoration: underline; cursor: pointer; }
+  .pantalla input[type=text] { box-sizing: border-box; height: 52px; padding: 0 16px; color: #fff; background: #27444d; border: 2px solid #40798c; border-radius: 8px; font: 500 20px Figtree, system-ui, sans-serif; }
+  .pantalla input::placeholder { color: #9ec1a3; font-style: italic; }
+  .etiqueta { font-size: 15px; font-weight: 600; color: #9ec1a3; }
+  .jugador { display: flex; align-items: center; gap: 16px; padding: 14px 18px; border: 2px dashed #40798c; border-radius: 10px; }
+  .jugador .ficha { width: 44px; height: 44px; border-radius: 50%; border: 2px dashed #70a9a1; box-sizing: border-box; flex: none; }
+  .jugador.dentro { border: 2px solid transparent; background: #27444d; }
+  .jugador.dentro .ficha { border: 0; background: #d8382f; }
+  .jugador .nombre { font-size: 22px; font-weight: 600; }
+  .jugador .sub { font-size: 15px; color: #9ec1a3; }
+  .jugador .est { font-size: 15px; font-weight: 600; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<script src="/qrcode.js"></script>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<!-- Pantalla 1: crear sala -->
+<div class="pantalla" id="pCrear" style="gap:56px">
+  <div class="cabeza">
+    <div class="marca titular">Ping <span>Phone</span></div>
+    <div class="sec" style="font-size:15px">Juego local · todos en el mismo WiFi</div>
+  </div>
+  <div class="cuerpo" style="align-items:flex-start">
+    <div class="columna" style="flex:1 1 420px;max-width:520px;gap:28px">
+      <h1 class="titular" style="margin:0;font-size:68px;line-height:1;letter-spacing:-0.02em">Crea una sala</h1>
+      <div class="columna" style="gap:8px">
+        <div class="etiqueta">Nombre de la sala</div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+          <div class="titular" id="crearNombre" style="flex:1 1 220px;min-width:0;font-size:44px;line-height:52px;color:#fff">…</div>
+          <button class="borde" id="otroNombre">Otro nombre</button>
+        </div>
+      </div>
+      <div class="columna" style="gap:12px">
+        <label style="display:flex;align-items:center;gap:12px;min-height:44px;font-size:18px;cursor:pointer">
+          <input type="checkbox" id="conClave" style="width:22px;height:22px;accent-color:#d8382f">
+          Pedir contraseña para entrar
+        </label>
+        <div class="columna" id="claveCaja" style="gap:8px;display:none">
+          <label class="etiqueta" for="claveSala">Contraseña</label>
+          <input type="text" id="claveSala" placeholder="Contraseña" maxlength="30" autocomplete="off">
+        </div>
+      </div>
+      <button class="rojo titular" id="crearSala">Crear sala</button>
+    </div>
+    <div style="flex:1 1 360px;display:flex;justify-content:center">
+      <svg aria-hidden="true" viewBox="0 0 420 420" style="width:100%;max-width:420px">
+        <ellipse cx="210" cy="392" rx="150" ry="12" fill="#172a30"/>
+        <g transform="rotate(28 210 210)">
+          <rect x="186" y="268" width="48" height="128" rx="10" fill="#a9713a"/>
+          <rect x="186" y="268" width="48" height="26" fill="#8a5a2c"/>
+          <ellipse cx="210" cy="160" rx="128" ry="140" fill="#d8382f"/>
+        </g>
+        <circle cx="344" cy="92" r="20" fill="#ffa726"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- Pantalla 2: dentro de la sala -->
+<div class="pantalla" id="pSala" style="gap:36px;display:none">
+  <div class="cabeza">
+    <div class="marca titular">Ping <span>Phone</span></div>
+    <button class="enlace" id="cerrarSala">Cerrar sala</button>
+  </div>
+  <div class="cuerpo" style="gap:56px;align-items:flex-start">
+    <div class="columna" style="flex:1 1 440px;gap:28px">
+      <div class="columna" style="gap:4px">
+        <div class="sec" id="salaClave" style="font-size:17px;font-weight:600">Sala · sin contraseña</div>
+        <h1 class="titular" id="salaNombre" style="margin:0;font-size:92px;line-height:.95;letter-spacing:-0.02em">…</h1>
+      </div>
+      <div class="columna" style="gap:12px">
+        <h2 class="sec" id="cuenta" style="margin:0;font-size:18px;font-weight:600">Jugadores (0 de 2)</h2>
+        <div class="jugador" id="j1"><div class="ficha"></div><div style="flex:1;min-width:0"><div class="nombre"></div><div class="sub"></div></div><div class="est"></div></div>
+        <div class="jugador" id="j2"><div class="ficha"></div><div style="flex:1;min-width:0"><div class="nombre"></div><div class="sub"></div></div><div class="est"></div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <button class="borde" id="salaCam">Activar cámara</button>
+        <div class="sec" id="salaCamEstado" style="font-size:15px">La cámara sigue tu mano para mover la paleta.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <button class="rojo titular" id="empezar">Empezar práctica</button>
+        <div class="sec" style="font-size:15px">Se puede empezar con un solo jugador.</div>
+      </div>
+    </div>
+    <div class="columna" style="flex:0 1 360px;gap:16px">
+      <h2 class="titular" style="margin:0;font-size:30px;line-height:1.05">Entra con tu celular</h2>
+      <div id="qr" style="background:#cfe0c3;padding:22px;border-radius:10px;line-height:0;min-height:120px"></div>
+      <ol style="margin:0;padding-left:22px;font-size:17px;line-height:1.5">
+        <li>Conéctate al mismo WiFi que esta laptop.</li>
+        <li>Escanea el código con la cámara.</li>
+        <li>Elige la app o jugar desde el navegador.</li>
+      </ol>
+      <button class="enlace" id="porIp" style="align-self:flex-start">¿No escanea? Conectar por IP</button>
+      <div id="qrUrl" style="display:none;font-size:17px;overflow-wrap:anywhere"></div>
+    </div>
+  </div>
+</div>
+
+<div id="contador">Respondidas: 0</div>
+<div id="resultado"></div>
+<div id="vistaCamara" style="display:none"><div id="vistaPunto"></div></div>
+<div id="guia" style="display:none">
+  <div id="guiaDibujo"></div>
+  <div id="guiaLado">
+    <div id="guiaTitulo"></div>
+    <div id="guiaTexto"></div>
+    <div id="guiaPie"></div>
+  </div>
+</div>
+<button id="abrirPanel" style="display:none">Panel</button>
+<div id="panel">
+  <button id="cerrarPanel">Ocultar panel</button>
+  <div style="font-size:22px;margin-bottom:6px">Sala <span id="sala">…</span></div>
+  <div><b>Jugador 1:</b> <span id="estado">sin conectar</span> <span id="nombreJugador"></span></div>
+  <div><b>Paquetes/seg:</b> <span id="pps">0</span></div>
+  <div><b>Aceleración:</b> <span id="acel">0.0</span> m/s²</div>
+  <div><b>Avance de la paleta:</b> <span id="avance">0.00</span></div>
+  <button id="vibrar">Probar vibración</button>
+  <div id="ajustes" style="margin-top:14px"></div>
+  <div style="margin-top:14px"><b>Cámara:</b> <span id="camEstado">apagada</span></div>
+  <div><b>Cuadros de cámara/seg:</b> <span id="camCuadros">0</span></div>
+  <div><b>Detecciones/seg:</b> <span id="camFps">0</span></div>
+  <div><b>Cada detección:</b> <span id="camMs">-</span></div>
+  <div><b>Muñeca:</b> <span id="camMano">-</span></div>
+  <button id="camBoton">Activar cámara</button>
+  <button id="camLado">Mano: derecha (M)</button>
+  <button id="camMotor" disabled>Motor: -</button>
+  <button id="camVer">Ocultar imagen</button>
+  <div><select id="camLista" style="margin-top:10px;padding:6px;max-width:320px;display:none"></select></div>
+  <div style="opacity:.6;margin-top:8px;max-width:330px">La calibración se hace desde el celular: botón Calibrar o un botón de volumen.</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+// Seguimiento del cuerpo (MediaPipe). La imagen de la cámara nunca se muestra.
+const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODELO_POSE = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const MUNECA_IZQ = 15, MUNECA_DER = 16;   // índices del modelo de pose
+const VISIBLE_MIN = 0.5;                  // confianza mínima para aceptar la muñeca
+
+
+// ---------- Escena ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+// Hay dos escenas. `fondo` es la sala con todos sus objetos: como la cámara no se mueve,
+// se pinta una sola vez en una imagen y esa imagen queda de fondo (plana, sin costo por cuadro).
+// `escena` tiene solo lo que cambia o importa para el juego: el tablero, la red, la pelota y la paleta.
+const escena = new THREE.Scene();
+const fondo = new THREE.Scene();
+fondo.background = new THREE.Color(0x1f363d);
+const camara = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+// Cámara detrás y por encima del jugador, inclinada hacia la mesa.
+camara.position.set(0, 2.2, 3.4);
+camara.lookAt(0, 0.2, -3.3);
+
+for (const e of [escena, fondo]) {
+  e.add(new THREE.AmbientLight(0xffffff, 1.7));
+  const luz = new THREE.DirectionalLight(0xffffff, 1.3);
+  luz.position.set(3, 10, 6);
+  e.add(luz);
+}
+let destino = fondo;   // a qué escena van las piezas que crean caja(), panel() y tapete()
+
+// Medidas reales pasadas a unidades de juego (4 unidades = 1 metro).
+const M = 4;
+const MESA_Y = -0.8;                              // superficie de la mesa: 20 cm bajo la posición de espera de la paleta
+const MESA_Z_CERCA = -0.6;                        // borde del lado del jugador
+const MESA_LARGO = 2.74 * M;
+const MESA_MEDIO_ANCHO = 1.525 * M / 2;
+const MESA_Z_LEJOS = MESA_Z_CERCA - MESA_LARGO;
+const RED_Z = MESA_Z_CERCA - MESA_LARGO / 2;
+const RED_ALTO = 0.1525 * M;
+const RED_MEDIO_ANCHO = MESA_MEDIO_ANCHO + 0.1525 * M;
+const SUELO_Y = MESA_Y - 0.76 * M;
+
+// La sala se describe en metros, con el suelo en y = 0 y el borde de la mesa del lado del
+// jugador en z = 1,28 (las mismas medidas del boceto). Estas funciones lo pasan al juego.
+const gx = (x) => x * M, gy = (y) => (y - 0.76) * M + MESA_Y, gz = (z) => (z - 1.28) * M + MESA_Z_CERCA;
+const liso = (color, extra) => new THREE.MeshLambertMaterial({ color, ...extra });
+const plano = (color, extra) => new THREE.MeshBasicMaterial({ color, ...extra });
+// Caja entre dos esquinas, en metros.
+function caja(x0, x1, y0, y1, z0, z1, material) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry((x1 - x0) * M, (y1 - y0) * M, (z1 - z0) * M), material);
+  m.position.set(gx((x0 + x1) / 2), gy((y0 + y1) / 2), gz((z0 + z1) / 2));
+  destino.add(m);
+  return m;
+}
+// Rectángulo vertical mirando al jugador (pared del fondo y lo que cuelga de ella).
+function panel(x0, x1, y0, y1, z, material) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry((x1 - x0) * M, (y1 - y0) * M), material);
+  m.position.set(gx((x0 + x1) / 2), gy((y0 + y1) / 2), gz(z));
+  destino.add(m);
+  return m;
+}
+// Rectángulo vertical en una pared lateral (lado = -1 izquierda, 1 derecha).
+function panelLateral(lado, z0, z1, y0, y1, x, material) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry((z1 - z0) * M, (y1 - y0) * M), material);
+  m.rotation.y = -lado * Math.PI / 2;
+  m.position.set(gx(x), gy((y0 + y1) / 2), gz((z0 + z1) / 2));
+  destino.add(m);
+  return m;
+}
+// Rectángulo horizontal (suelo, techo, marcas).
+function tapete(x0, x1, z0, z1, y, material, haciaAbajo = false) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry((x1 - x0) * M, (z1 - z0) * M), material);
+  m.rotation.x = haciaAbajo ? Math.PI / 2 : -Math.PI / 2;
+  m.position.set(gx((x0 + x1) / 2), gy(y), gz((z0 + z1) / 2));
+  destino.add(m);
+  return m;
+}
+
+let escribirLetrero = () => {};
+function crearSala() {
+  const ANCHO = 4.2, FONDO = -6.5, FRENTE = 7, TECHO = 3.4;   // medio ancho, pared del fondo, pared de atrás, altura
+  // Suelo: no escribe profundidad, así las marcas y las sombras siempre se dibujan encima.
+  const suelo = tapete(-ANCHO, ANCHO, FONDO, FRENTE, 0, plano(0x2d4f57, { depthWrite: false }));
+  suelo.renderOrder = -2;
+  tapete(-ANCHO, ANCHO, FONDO, FRENTE, TECHO, plano(0x182c32), true);
+  panel(-ANCHO, ANCHO, 0, TECHO, FONDO, plano(0x27444d));
+  panelLateral(-1, FONDO, FRENTE, 0, TECHO, -ANCHO, plano(0x213b43));
+  panelLateral(1, FONDO, FRENTE, 0, TECHO, ANCHO, plano(0x213b43));
+  // Franja de color en la parte baja de las paredes.
+  panel(-ANCHO, ANCHO, 0, 1.1, FONDO + 0.01, plano(0x2f5560));
+  panelLateral(-1, FONDO, FRENTE, 0, 1.1, -ANCHO + 0.01, plano(0x294b55));
+  panelLateral(1, FONDO, FRENTE, 0, 1.1, ANCHO - 0.01, plano(0x294b55));
+  // Ventanas altas en la pared del fondo.
+  for (let i = 0; i < 5; i++) {
+    const x = -3.3 + i * 1.4;
+    panel(x, x + 1.1, 2.2, 3.0, FONDO + 0.02, plano(0x70a9a1, { transparent: true, opacity: 0.55 }));
+    panel(x + 0.535, x + 0.565, 2.2, 3.0, FONDO + 0.03, plano(0x27444d));
+  }
+  // Letrero.
+  const lienzo = document.createElement('canvas');
+  lienzo.width = 1024; lienzo.height = 256;
+  const textura = new THREE.CanvasTexture(lienzo);
+  textura.colorSpace = THREE.SRGBColorSpace;
+  escribirLetrero = () => {
+  const c = lienzo.getContext('2d');
+  c.clearRect(0, 0, 1024, 256);
+  c.font = "800 170px 'Bricolage Grotesque', system-ui, sans-serif";
+  c.textBaseline = 'middle';
+  const ancho1 = c.measureText('Ping ').width, ancho2 = c.measureText('Phone').width;
+  const inicio = (1024 - ancho1 - ancho2) / 2;
+  c.fillStyle = '#cfe0c3'; c.fillText('Ping ', inicio, 128);
+  c.fillStyle = '#ffa726'; c.fillText('Phone', inicio + ancho1, 128);
+  textura.needsUpdate = true;
+  };
+  escribirLetrero();
+  panel(-1.2, 1.2, 1.45, 2.05, FONDO + 0.03, new THREE.MeshBasicMaterial({ map: textura, transparent: true }));
+
+  // Marcas de la cancha en el suelo.
+  const marca = plano(0x40798c, { depthWrite: false });
+  for (const m of [
+    tapete(-3.0, 3.0, -4.62, -4.58, 0.004, marca), tapete(-3.0, 3.0, 2.58, 2.62, 0.004, marca),
+    tapete(-3.02, -2.98, -4.6, 2.6, 0.004, marca), tapete(2.98, 3.02, -4.6, 2.6, 0.004, marca),
+  ]) m.renderOrder = -1;
+  // Vallas bajas detrás de la mesa.
+  for (let i = 0; i < 4; i++) {
+    const x = -3.0 + i * 1.52;
+    caja(x, x + 1.44, 0, 0.72, -4.76, -4.7, liso(0x40798c));
+    panel(x + 0.12, x + 1.32, 0.26, 0.46, -4.695, plano(0xcfe0c3));
+  }
+  // Banca con toalla y botella (izquierda).
+  caja(-3.9, -3.3, 0.38, 0.46, -3.2, -1.2, liso(0xa9713a));
+  for (const z of [-3.1, -1.3]) for (const x of [-3.82, -3.38]) caja(x - 0.04, x + 0.04, 0, 0.38, z - 0.04, z + 0.04, liso(0x1a2f35));
+  caja(-3.8, -3.4, 0.46, 0.5, -2.0, -1.5, liso(0xcfe0c3));
+  caja(-3.72, -3.62, 0.46, 0.74, -2.7, -2.6, liso(0x70a9a1));
+  // Canasta de pelotas (derecha).
+  caja(3.1, 3.6, 0, 0.55, -2.4, -1.9, liso(0x1a2f35));
+  const bola = new THREE.SphereGeometry(0.02 * M * 1.6, 10, 8);
+  for (const [x, z] of [[3.22, -2.25], [3.36, -2.1], [3.48, -2.3], [3.3, -2.0], [3.45, -2.05]]) {
+    const b = new THREE.Mesh(bola, liso(0xffa726));
+    b.position.set(gx(x), gy(0.57), gz(z));
+    fondo.add(b);
+  }
+  // Planta en la esquina del fondo.
+  caja(3.3, 3.8, 0, 0.5, -6.0, -5.5, liso(0xa9713a));
+  for (const [dx, dy, r] of [[0, 0.5, 0.3], [-0.22, 0.32, 0.23], [0.22, 0.36, 0.22], [0.04, 0.82, 0.2]]) {
+    const hoja = new THREE.Mesh(new THREE.SphereGeometry(r * M, 12, 10), liso(0x70a9a1));
+    hoja.scale.x = 0.75;
+    hoja.position.set(gx(3.55 + dx), gy(0.6 + dy), gz(-5.75));
+    fondo.add(hoja);
+  }
+  // Lámparas colgantes.
+  for (const z of [-3.2, -1.3]) {
+    caja(-0.008, 0.008, 2.87, TECHO, z - 0.008, z + 0.008, plano(0x0f1f23));
+    const pantalla = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * M, 0.42 * M, 0.17 * M, 24, 1, true), plano(0x40798c, { side: THREE.DoubleSide }));
+    pantalla.position.set(0, gy(2.785), gz(z));
+    fondo.add(pantalla);
+    const foco = new THREE.Mesh(new THREE.CircleGeometry(0.4 * M, 24), plano(0xcfe0c3));
+    foco.rotation.x = Math.PI / 2;
+    foco.position.set(0, gy(2.71), gz(z));
+    fondo.add(foco);
+  }
+}
+
+function crearMesa() {
+  const Z0 = 1.28 - 2.74, Z1 = 1.28, MA = 1.525 / 2, ALTO = 0.76;
+  // Sombra de la mesa en el suelo.
+  const sombra = new THREE.Mesh(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2),
+    plano(0x1a2f35, { transparent: true, opacity: 0.5, depthWrite: false }));
+  sombra.scale.set(MA * M * 1.35, 1, 2.74 * M * 0.62);
+  sombra.position.set(0, SUELO_Y + 0.008, (MESA_Z_CERCA + MESA_Z_LEJOS) / 2);
+  sombra.renderOrder = -1;
+  fondo.add(sombra);
+  // Patas y travesaños (fondo); tablero (escena viva).
+  for (const z of [Z0 + 0.24, Z1 - 0.25]) {
+    for (const x of [-0.6, 0.6]) caja(x - 0.04, x + 0.04, 0, ALTO - 0.05, z - 0.04, z + 0.04, liso(0x172a30));
+    caja(-0.6, 0.6, 0.5, 0.56, z - 0.04, z + 0.04, liso(0x172a30));
+  }
+  destino = escena;
+  caja(-MA, MA, ALTO - 0.05, ALTO, Z0, Z1, liso(0x40798c));
+  // Líneas blancas: los cuatro bordes y la línea central.
+  const linea = plano(0xcfe0c3), y = ALTO + 0.0015, B = 0.02;
+  tapete(-MA, MA, Z0, Z0 + B, y, linea); tapete(-MA, MA, Z1 - B, Z1, y, linea);
+  tapete(-MA, -MA + B, Z0, Z1, y, linea); tapete(MA - B, MA, Z0, Z1, y, linea);
+  tapete(-0.004, 0.004, Z0, Z1, y, linea);
+  // Red: malla oscura translúcida, hilos, cinta superior y postes.
+  const ZR = (Z0 + Z1) / 2, AR = MA + 0.1525, HR = 0.1525;
+  panel(-AR, AR, ALTO, ALTO + HR, ZR, plano(0x1a2f35, { transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+  const hilos = [];
+  for (let i = 1; i < 30; i++) { const x = gx(-AR + i * 2 * AR / 30); hilos.push(x, gy(ALTO), gz(ZR), x, gy(ALTO + HR), gz(ZR)); }
+  for (const h of [0.05, 0.1]) hilos.push(gx(-AR), gy(ALTO + h), gz(ZR), gx(AR), gy(ALTO + h), gz(ZR));
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(hilos, 3));
+  escena.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xcfe0c3, transparent: true, opacity: 0.45 })));
+  caja(-AR, AR, ALTO + HR - 0.012, ALTO + HR, ZR - 0.004, ZR + 0.004, plano(0xcfe0c3));
+  for (const x of [-AR, AR]) caja(x - 0.012, x + 0.012, ALTO - 0.03, ALTO + HR + 0.01, ZR - 0.012, ZR + 0.012, liso(0x172a30));
+}
+crearSala();
+crearMesa();
+
+// La sala se pinta en una imagen que queda de fondo de la escena viva.
+const imagenFondo = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, samples: 4 });
+escena.background = imagenFondo.texture;
+function pintarFondo() {
+  const tam = renderer.getDrawingBufferSize(new THREE.Vector2());
+  imagenFondo.setSize(tam.x, tam.y);
+  renderer.setRenderTarget(imagenFondo);
+  renderer.render(fondo, camara);
+  renderer.setRenderTarget(null);
+}
+
+// Sombra: un disco oscuro sobre la mesa o el suelo, justo debajo del objeto.
+const geoSombra = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+const matSombra = new THREE.MeshBasicMaterial({ color: 0x0f1f23, transparent: true, opacity: 0.6, depthWrite: false });
+function crearSombra() {
+  const sombra = new THREE.Mesh(geoSombra, matSombra);
+  sombra.position.y = SUELO_Y + 0.01;
+  escena.add(sombra);
+  return sombra;
+}
+
+// Raqueta. Ocupa el lugar del celular con sus mismos ejes:
+//   +Y = lado de la pantalla (goma roja), -Y = espalda (goma negra),
+//   -Z = borde superior del celular (punta de la pala), +Z = borde inferior (mango).
+// El origen está en el mango, que es donde la agarra la mano.
+const PALA_RADIO = 0.5;        // radio de la pala, en unidades de la raqueta sin escalar
+const PALA_ALARGUE = 1.08;     // la pala es un poco más larga que ancha
+const PALA_CENTRO_Z = -0.78;   // distancia del mango al centro de la pala
+const PALA_MEDIO_GROSOR = 0.05;
+const ESCALA_BASE = 0.6;        // tamaño que corresponde al 100 % del panel
+
+function crearRaqueta() {
+  const RADIO = PALA_RADIO, LADOS = 20;
+  const mat = (color, rugosidad) => new THREE.MeshStandardMaterial({ color, roughness: rugosidad });
+  const madera = mat(0xc8955a, 0.8);
+  const raqueta = new THREE.Group();
+
+  // Pala: tres discos apilados (goma roja, madera, goma negra).
+  const pala = new THREE.Group();
+  const capas = [
+    { color: 0xd32f2f, grosor: 0.03, y: 0.035 },   // lado de la pantalla
+    { color: 0xc8955a, grosor: 0.04, y: 0 },
+    { color: 0x1c1c1e, grosor: 0.03, y: -0.035 },  // espalda
+  ];
+  for (const c of capas) {
+    const disco = new THREE.Mesh(new THREE.CylinderGeometry(RADIO, RADIO, c.grosor, LADOS), mat(c.color, 0.7));
+    disco.position.y = c.y;
+    pala.add(disco);
+  }
+  pala.scale.z = PALA_ALARGUE;
+  pala.position.z = PALA_CENTRO_Z;
+  raqueta.add(pala);
+
+  // Cuello: une la pala con el mango.
+  const cuello = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.16), madera);
+  cuello.position.z = -0.27;
+  raqueta.add(cuello);
+
+  // Mango de madera, más ancho hacia el extremo.
+  const mango = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.5, 6), mat(0xa9713a, 0.8));
+  mango.rotation.x = Math.PI / 2;   // el eje del cilindro pasa a ser Z
+  mango.scale.z = 0.6;              // aplanado, como un mango real
+  mango.position.z = 0.03;
+  raqueta.add(mango);
+
+  return raqueta;
+}
+
+const raqueta = crearRaqueta();
+escena.add(raqueta);
+let escalaRaqueta = ESCALA_BASE;   // la fija el ajuste del panel; el hitbox crece con ella
+
+function ajustar() {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camara.aspect = window.innerWidth / window.innerHeight;
+  camara.updateProjectionMatrix();
+  pintarFondo();
+}
+window.addEventListener('resize', ajustar);
+ajustar();
+// El letrero usa la letra de los títulos: cuando termina de cargar se repinta.
+document.fonts.ready.then(() => { escribirLetrero(); pintarFondo(); });
+
+// ---------- Datos del mando ----------
+const qSensor = new THREE.Quaternion();   // orientación recibida (ejes de Three)
+const qCentro = new THREE.Quaternion();   // corrección de giro horizontal
+const EJE_Y = new THREE.Vector3(0, 1, 0);
+let paquetes = 0;
+let ultimaCalibracion = 0;
+// Posición de la muñeca medida en «troncos»: la distancia en la imagen dividida entre el largo
+// del tronco (de hombros a caderas) en esa misma imagen. Así no cambia al acercarse o alejarse.
+//   x (u): horizontal, desde el centro de la imagen. Dar un paso al costado sí mueve la paleta.
+//   y (v): vertical, desde la altura de las caderas. Acercarse o alejarse no la sube ni la baja.
+let munecaVista = null;
+// Extremos del alcance del brazo, en troncos. Los fija la calibración; estos son valores de partida.
+let uIzquierda = 1.4, uDerecha = -1.4, vArriba = -1.6, vAbajo = 0.6;
+// Zona del juego que recorren esos extremos: es lo que la cámara del juego ve a la altura del jugador.
+const ZONA_X = 3.0;            // de -3 (brazo a la izquierda) a +3 (a la derecha)
+const ZONA_Y = [-1.0, 2.4];    // de brazo abajo a brazo arriba (la mesa está en -0,8)
+let sensH = 1, sensV = 1;                          // ajustes del panel sobre esa escala
+
+// ---------- Avance por acelerómetro ----------
+// La cámara no mide bien la profundidad, así que el avance de la paleta hacia la pelota
+// sale del gesto de golpear: se integra dos veces la aceleración del celular a lo largo
+// del eje jugador-mesa.
+//   - Mientras hay gesto (aceleración apreciable) se integra casi sin pérdidas, para
+//     seguir el movimiento real de la mano.
+//   - En reposo la velocidad se apaga enseguida y la paleta vuelve a su plano, de modo
+//     que el error de integrar no se acumula.
+//   - El error fijo del sensor (sesgo) se aprende solo en reposo.
+const UNIDADES_POR_METRO = 4;        // escala del juego: la pala de 15 cm mide 0,6 unidades
+const ACEL_GESTO = 1.5;              // m/s²: por encima hay gesto, por debajo es reposo
+const REPOSO_S = 0.08;               // tiempo seguido en reposo para dar el gesto por terminado
+const OLVIDO_VEL_GESTO_S = 2.0;      // pérdida de velocidad durante el gesto (casi nula)
+const OLVIDO_VEL_REPOSO_S = 0.06;    // en reposo la velocidad estimada se apaga rápido
+const OLVIDO_POS_REPOSO_S = 0.45;    // y la paleta vuelve a su plano en este tiempo
+const OLVIDO_SESGO_S = 0.5;
+const GESTO_MAX_S = 1.0;             // ningún golpe dura más: si pasa, lo medido era error del sensor
+const AVANCE_MAX = 2.5, RETROCESO_MAX = 0.8;   // límites, en unidades de juego
+let gananciaAvance = 1;              // ajuste del panel
+let ayudaGolpe = 0.8;                // ajuste del panel: 0 = física pura, 1 = la devolución siempre cae en la mesa contraria
+let sesgoZ = 0, velZ = 0, posZ = 0;  // en metros; Z negativo = hacia la mesa
+let tAcel = 0, enReposo = 0, enGesto = 0;
+const acelJuego = new THREE.Vector3();
+
+function reiniciarAvance() { sesgoZ = 0; velZ = 0; posZ = 0; tAcel = 0; enReposo = 0; enGesto = 0; }
+
+// ax, ay, az: aceleración sin gravedad en los ejes del celular (m/s²).
+// marca: instante de esa lectura según el reloj del celular, en milisegundos. Con ella el
+// cálculo no depende de los retrasos de la red. Si falta, se usa la hora de llegada.
+function integrarAvance(ax, ay, az, marca) {
+  const ahora = Number.isFinite(marca) ? marca / 1000 : performance.now() / 1000;
+  if (ahora === tAcel) return;          // misma lectura repetida en otro paquete
+  const dt = Math.min(ahora - tAcel, 0.05);
+  tAcel = ahora;
+  if (dt <= 0) return;
+  // De los ejes del celular a los del juego: misma conversión que la orientación,
+  // luego el giro actual del celular y la corrección de la calibración.
+  acelJuego.set(ax, az, -ay).applyQuaternion(qSensor).applyQuaternion(qCentro);
+  let a = acelJuego.z - sesgoZ;
+  if (Math.abs(a) >= ACEL_GESTO) {
+    enReposo = 0;
+    enGesto += dt;
+    if (enGesto > GESTO_MAX_S) {
+      // Demasiado largo para ser un golpe: se toma como error fijo del sensor y se empieza de cero.
+      sesgoZ = acelJuego.z;
+      velZ = 0;
+      enReposo = REPOSO_S;
+      enGesto = 0;
+      a = 0;
+    }
+  } else {
+    enGesto = 0;
+    enReposo += dt;
+    sesgoZ += (acelJuego.z - sesgoZ) * (1 - Math.exp(-dt / OLVIDO_SESGO_S));
+    a = 0;
+  }
+  const gesto = enReposo < REPOSO_S;
+  velZ = (velZ + a * dt) * Math.exp(-dt / (gesto ? OLVIDO_VEL_GESTO_S : OLVIDO_VEL_REPOSO_S));
+  posZ += velZ * dt;
+  if (!gesto) posZ *= Math.exp(-dt / OLVIDO_POS_REPOSO_S);
+}
+
+// Desplazamiento de la paleta en profundidad, en unidades de juego (negativo = hacia la mesa).
+function avancePaleta() {
+  const z = posZ * UNIDADES_POR_METRO * gananciaAvance;
+  return Math.min(Math.max(z, -AVANCE_MAX), RETROCESO_MAX);
+}
+let jugadorConectado = false;
+
+const $ = (id) => document.getElementById(id);
+
+function vibrar(ms) { fetch(`/vibrar?j=1&ms=${ms}`); }
+$('vibrar').onclick = () => vibrar(80);
+
+// ---------- Calibración guiada ----------
+// Se maneja solo desde el celular (botón Calibrar o botones de volumen).
+// Cada pulsación confirma el paso que se muestra en pantalla.
+const PASOS = 5;
+const TEXTO_PASO = [
+  '',
+  'Apunta el celular hacia la laptop, como un control remoto, con la pantalla hacia arriba.',
+  'Sin mover los pies, lleva el celular hacia tu izquierda todo lo que alcances.',
+  'Ahora llévalo hacia tu derecha todo lo que alcances.',
+  'Súbelo todo lo que alcances.',
+  'Bájalo hasta las rodillas. Tu mano tiene que verse en la imagen de la cámara.',
+];
+const VISTA_PASO = ['', 'Vista desde arriba', 'Vista desde arriba', 'Vista desde arriba', 'Vista de frente', 'Vista de frente'];
+// Dibujos de cada paso (los mismos que muestra el celular).
+const DIBUJO_PASO = ['', "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"#3A3D44\"/><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"none\" stroke=\"#AEB4BF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M92,18 h56 a2,2 0 0 1 2,2 v30 a2,2 0 0 1 -2,2 h-56 a2,2 0 0 1 -2,-2 v-30 a2,2 0 0 1 2,-2 Z\" fill=\"#5B6270\"/><path d=\"M76,61 L164,61 L172,72 L68,72 Z\" fill=\"#8A8F98\"/><path d=\"M152,196 L150,168 L141,148\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M74,200 a46,17 0 1 0 92,0 a46,17 0 1 0 -92,0 Z\" fill=\"#C9CCD3\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"#E8E8E8\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M130.0,104.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M130.0,104.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M135.5,111.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M138,98 L138.0,88.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M138,77 L144.6,88.0 L131.4,88.0 Z\" fill=\"#FFD24A\"/></svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"#3A3D44\"/><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"none\" stroke=\"#AEB4BF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M92,18 h56 a2,2 0 0 1 2,2 v30 a2,2 0 0 1 -2,2 h-56 a2,2 0 0 1 -2,-2 v-30 a2,2 0 0 1 2,-2 Z\" fill=\"#5B6270\"/><path d=\"M76,61 L164,61 L172,72 L68,72 Z\" fill=\"#8A8F98\"/><path d=\"M152,196 L112,160 L52,152\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M74,200 a46,17 0 1 0 92,0 a46,17 0 1 0 -92,0 Z\" fill=\"#C9CCD3\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"#E8E8E8\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M38.0,108.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M38.0,108.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M43.5,115.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M112,126 L87.0,126.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M76,126 L87.0,119.4 L87.0,132.6 Z\" fill=\"#FFD24A\"/></svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"#3A3D44\"/><path d=\"M88,12 h64 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-64 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 Z\" fill=\"none\" stroke=\"#AEB4BF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M92,18 h56 a2,2 0 0 1 2,2 v30 a2,2 0 0 1 -2,2 h-56 a2,2 0 0 1 -2,-2 v-30 a2,2 0 0 1 2,-2 Z\" fill=\"#5B6270\"/><path d=\"M76,61 L164,61 L172,72 L68,72 Z\" fill=\"#8A8F98\"/><path d=\"M152,196 L178,172 L196,152\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M74,200 a46,17 0 1 0 92,0 a46,17 0 1 0 -92,0 Z\" fill=\"#C9CCD3\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"#E8E8E8\"/><path d=\"M105,196 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M192.0,108.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M192.0,108.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M197.5,115.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M128,126 L159.0,126.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M170,126 L159.0,132.6 L159.0,119.4 Z\" fill=\"#FFD24A\"/></svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M108,112 h24 a12,12 0 0 1 12,12 v54 a12,12 0 0 1 -12,12 h-24 a12,12 0 0 1 -12,-12 v-54 a12,12 0 0 1 12,-12 Z\" fill=\"#C9CCD3\"/><path d=\"M108,186 h2 a8,8 0 0 1 8,8 v34 a8,8 0 0 1 -8,8 h-2 a8,8 0 0 1 -8,-8 v-34 a8,8 0 0 1 8,-8 Z\" fill=\"#C9CCD3\"/><path d=\"M130,186 h2 a8,8 0 0 1 8,8 v34 a8,8 0 0 1 -8,8 h-2 a8,8 0 0 1 -8,-8 v-34 a8,8 0 0 1 8,-8 Z\" fill=\"#C9CCD3\"/><path d=\"M103,90 a17,17 0 1 0 34,0 a17,17 0 1 0 -34,0 Z\" fill=\"#E8E8E8\"/><path d=\"M103,90 a17,17 0 1 0 34,0 a17,17 0 1 0 -34,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M140,122 L164,96 L172,70\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M166.0,20.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M166.0,20.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M171.5,27.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M206,78 L206.0,41.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M206,30 L212.6,41.0 L199.4,41.0 Z\" fill=\"#FFD24A\"/></svg>", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 240 240\"><path d=\"M108,112 h24 a12,12 0 0 1 12,12 v54 a12,12 0 0 1 -12,12 h-24 a12,12 0 0 1 -12,-12 v-54 a12,12 0 0 1 12,-12 Z\" fill=\"#C9CCD3\"/><path d=\"M108,186 h2 a8,8 0 0 1 8,8 v34 a8,8 0 0 1 -8,8 h-2 a8,8 0 0 1 -8,-8 v-34 a8,8 0 0 1 8,-8 Z\" fill=\"#C9CCD3\"/><path d=\"M130,186 h2 a8,8 0 0 1 8,8 v34 a8,8 0 0 1 -8,8 h-2 a8,8 0 0 1 -8,-8 v-34 a8,8 0 0 1 8,-8 Z\" fill=\"#C9CCD3\"/><path d=\"M103,90 a17,17 0 1 0 34,0 a17,17 0 1 0 -34,0 Z\" fill=\"#E8E8E8\"/><path d=\"M103,90 a17,17 0 1 0 34,0 a17,17 0 1 0 -34,0 Z\" fill=\"none\" stroke=\"#8A8F98\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M140,122 L164,156 L174,188\" fill=\"none\" stroke=\"#C9CCD3\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M168.0,188.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"#2F6FED\"/><path d=\"M168.0,188.0 h16 a5,5 0 0 1 5,5 v38 a5,5 0 0 1 -5,5 h-16 a5,5 0 0 1 -5,-5 v-38 a5,5 0 0 1 5,-5 Z\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M173.5,195.0 a2.5,2.5 0 1 0 5.0,0 a2.5,2.5 0 1 0 -5.0,0 Z\" fill=\"#9DBBFF\"/><path d=\"M208,170 L208.0,215.0\" fill=\"none\" stroke=\"#FFD24A\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M208,226 L201.4,215.0 L214.6,215.0 Z\" fill=\"#FFD24A\"/></svg>"];
+let paso = 0;          // 0 = sin calibración en curso
+let uPaso2 = 0;        // posición de la muñeca con el brazo a la izquierda (paso 2)
+let vPaso4 = 0;        // ídem con el brazo arriba (paso 4)
+
+function mostrarGuia(titulo, texto, pie, n = 0) {
+  $('guiaDibujo').innerHTML = n ? DIBUJO_PASO[n] + VISTA_PASO[n] : '';
+  $('guiaTitulo').textContent = titulo;
+  $('guiaTexto').textContent = texto;
+  $('guiaPie').textContent = pie;
+  $('guia').style.display = '';
+}
+
+// Problema de la cámara que el celular debe avisar durante la calibración.
+const AVISO_NINGUNO = 0, AVISO_APAGADA = 1, AVISO_NADIE = 2, AVISO_MUNECA = 3;
+let avisoEnviado = AVISO_NINGUNO;
+
+function avisoCamara() {
+  if (!pose || !video) return AVISO_APAGADA;
+  if (performance.now() / 1000 - tDeteccion > 1) return AVISO_NADIE; // la cámara dejó de dar imagen
+  return vistaCamara;
+}
+
+// El celular muestra el mismo paso que la laptop y, si lo hay, el problema de la cámara.
+function avisarCelular() {
+  avisoEnviado = paso === 0 ? AVISO_NINGUNO : avisoCamara();
+  fetch(`/paso?j=1&n=${paso}&e=${avisoEnviado}`);
+}
+
+// Durante la calibración se revisa la cámara varias veces por segundo.
+setInterval(() => {
+  if (paso !== 0 && avisoCamara() !== avisoEnviado) avisarCelular();
+}, 300);
+
+function irAPaso(n) {
+  paso = n;
+  avisarCelular();
+  if (n === 0) return;
+  mostrarGuia(`Calibración · paso ${n} de ${PASOS}`, TEXTO_PASO[n],
+    'Confirma en el celular: botón «Confirmar posición» o un botón de volumen.', n);
+}
+
+function terminarCalibracion(mensaje) {
+  irAPaso(0);
+  vibrar(250);
+  // Calibrando desde la sala se vuelve a ella en el acto; en la práctica se deja el aviso un momento.
+  if (calibraDesdeSala) {
+    $('guia').style.display = 'none';
+    volverDeCalibrar();
+    return;
+  }
+  mostrarGuia('Calibrado', mensaje, '');
+  setTimeout(() => { if (paso === 0) $('guia').style.display = 'none'; }, 2500);
+}
+
+let calibraDesdeSala = false;
+function volverDeCalibrar() {
+  if (!calibraDesdeSala) return;
+  calibraDesdeSala = false;
+  if (salaAbierta && !enJuego) verPantalla('sala');
+}
+
+function faltaMuneca() {
+  mostrarGuia(`Calibración · paso ${paso} de ${PASOS}`, TEXTO_PASO[paso],
+    'No veo tu muñeca. Aléjate o inclina la pantalla de la laptop hasta que tu mano se vea en la imagen, y vuelve a confirmar.', paso);
+  vibrar(30);
+}
+
+function cancelarCalibracion() {
+  if (paso === 0) return;
+  irAPaso(0);
+  $('guia').style.display = 'none';
+  volverDeCalibrar();
+}
+
+// El jugador pulsó Calibrar o un botón de volumen.
+function pulsoCalibrar() {
+  if (!salaAbierta) return;
+  // Desde la sala: se muestra la mesa para calibrar, sin empezar la práctica, y al terminar se vuelve a la sala.
+  if (!enJuego && paso === 0) { calibraDesdeSala = true; verPantalla('calibrar'); }
+  if (paso === 0) { irAPaso(1); vibrar(40); return; }
+  const hayCamara = pose && video;
+
+  if (paso === 1) {
+    if (hayCamara && !munecaVista) { faltaMuneca(); return; }
+    // Orientación: solo se corrige el giro horizontal; la inclinación sigue siendo la real.
+    // Acostado (como control remoto) manda la dirección a la que apunta el borde superior;
+    // de pie, la dirección a la que mira la pantalla.
+    const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(qSensor);
+    const frente = Math.abs(normal.y) > 0.7
+      ? new THREE.Vector3(0, 0, -1).applyQuaternion(qSensor)
+      : normal;
+    qCentro.setFromAxisAngle(EJE_Y, -Math.atan2(-frente.x, -frente.z));
+    reiniciarAvance();
+    if (!hayCamara) {
+      terminarCalibracion('Orientación lista. La cámara está apagada: no se calibró la posición.');
+      return;
+    }
+    irAPaso(2);
+    vibrar(60);
+    return;
+  }
+
+  if (!munecaVista) { faltaMuneca(); return; }
+
+  if (paso === 2) {
+    uPaso2 = munecaVista.x;
+    irAPaso(3);
+    vibrar(60);
+    return;
+  }
+
+  if (paso === 3) {
+    // Recorrido horizontal: de la mano a la izquierda a la mano a la derecha cubre el ancho de juego.
+    // Brazo a la izquierda = borde izquierdo de la zona; a la derecha = borde derecho.
+    if (Math.abs(munecaVista.x - uPaso2) > 0.5) { uIzquierda = uPaso2; uDerecha = munecaVista.x; }
+    irAPaso(4);
+    vibrar(60);
+    return;
+  }
+
+  if (paso === 4) {
+    vPaso4 = munecaVista.y;
+    irAPaso(5);
+    vibrar(60);
+    return;
+  }
+
+  // Paso 5. Brazo arriba = borde superior de la zona; abajo (rodillas) = borde inferior.
+  if (Math.abs(munecaVista.y - vPaso4) > 0.5) { vArriba = vPaso4; vAbajo = munecaVista.y; }
+  terminarCalibracion('Posición y orientación listas.');
+}
+
+// ---------- Panel: ocultar y ajustes ----------
+function verPanel(visible) {
+  $('panel').style.display = visible ? '' : 'none';
+  $('abrirPanel').style.display = visible ? 'none' : '';
+}
+$('cerrarPanel').onclick = () => verPanel(false);
+$('abrirPanel').onclick = () => verPanel(true);
+
+// Crea un ajuste del panel: barra deslizante con botones − y +, en porcentaje.
+// El valor se recuerda en el navegador para la próxima vez.
+function crearAjuste({ titulo, clave, inicial, min, max, salto, alCambiar }) {
+  const fila = document.createElement('div');
+  fila.innerHTML = `<div><b>${titulo}:</b> <span></span></div>
+    <div class="fila"><button>−</button><input type="range" min="${min}" max="${max}" step="5"><button>+</button></div>`;
+  $('ajustes').appendChild(fila);
+  const texto = fila.querySelector('span');
+  const barra = fila.querySelector('input');
+  const [menos, mas] = fila.querySelectorAll('button');
+
+  function poner(porcentaje) {
+    const valor = Math.min(Math.max(Math.round(porcentaje), min), max);
+    barra.value = valor;
+    texto.textContent = valor + ' %';
+    try { localStorage.setItem('pingphong.' + clave, valor); } catch (err) { /* sin almacenamiento: no se recuerda */ }
+    alCambiar(valor / 100);
+  }
+  barra.oninput = () => poner(Number(barra.value));
+  menos.onclick = () => poner(Number(barra.value) - salto);
+  mas.onclick = () => poner(Number(barra.value) + salto);
+
+  let guardado = inicial;
+  try {
+    const texto = localStorage.getItem('pingphong.' + clave);
+    if (texto !== null && texto !== '' && !Number.isNaN(Number(texto))) guardado = Number(texto);
+  } catch (err) { /* se usa el inicial */ }
+  poner(guardado);
+}
+
+// Tamaño de la paleta: cambia el dibujo y la zona de golpe.
+crearAjuste({
+  titulo: 'Tamaño de la paleta', clave: 'tamPaleta', inicial: 150, min: 50, max: 400, salto: 10,
+  alCambiar: (f) => { escalaRaqueta = ESCALA_BASE * f; raqueta.scale.setScalar(escalaRaqueta); },
+});
+// Cuánto se desplaza la paleta por cada movimiento de la mano, por eje.
+crearAjuste({
+  titulo: 'Recorrido horizontal', clave: 'sensH', inicial: 100, min: 30, max: 300, salto: 10,
+  alCambiar: (f) => { sensH = f; },
+});
+crearAjuste({
+  titulo: 'Recorrido vertical', clave: 'sensV', inicial: 100, min: 30, max: 300, salto: 10,
+  alCambiar: (f) => { sensV = f; },
+});
+// Cuánto avanza la paleta hacia la pelota con el gesto de golpear (0 % = no avanza).
+crearAjuste({
+  titulo: 'Avance al golpear', clave: 'avance', inicial: 100, min: 0, max: 300, salto: 10,
+  alCambiar: (f) => { gananciaAvance = f; },
+});
+
+// Cuánto se corrige la devolución para que caiga en la mitad contraria (0 % = física pura).
+crearAjuste({
+  titulo: 'Ayuda al devolver', clave: 'ayuda', inicial: 80, min: 0, max: 100, salto: 10,
+  alCambiar: (f) => { ayudaGolpe = f; },
+});
+
+// ---------- Pantallas de sala ----------
+let enJuego = false;                 // false mientras se ve «Crear sala» o «Dentro de la sala»
+let salaAbierta = false;
+const enSala = [null, { dentro: false, nombre: '' }, { dentro: false, nombre: '' }];   // jugadores 1 y 2
+
+function verPantalla(cual) {         // 'crear', 'sala', 'juego' o 'calibrar' (la mesa a la vista, sin pelotas)
+  $('pCrear').style.display = cual === 'crear' ? '' : 'none';
+  $('pSala').style.display = cual === 'sala' ? '' : 'none';
+  if ((cual === 'juego' && !enJuego) || cual === 'calibrar') verPanel(false);   // el panel empieza oculto; el botón «Panel» lo abre
+  if (cual !== 'calibrar') calibraDesdeSala = false;
+  enJuego = cual === 'juego';
+  avisarEstado();
+}
+
+function pintarJugadores() {
+  let cuantos = 0;
+  for (const id of [1, 2]) {
+    const j = enSala[id], caja = $('j' + id);
+    if (j.dentro) cuantos++;
+    caja.classList.toggle('dentro', j.dentro);
+    caja.querySelector('.nombre').textContent = j.dentro && j.nombre ? j.nombre : 'Jugador ' + id;
+    caja.querySelector('.sub').textContent = j.dentro ? (j.nombre ? 'Jugador ' + id : '') : 'Esperando que escanee el código QR';
+    caja.querySelector('.est').textContent = j.dentro ? 'Conectado' : '';
+  }
+  $('cuenta').textContent = `Jugadores (${cuantos} de 2)`;
+}
+pintarJugadores();
+
+$('otroNombre').onclick = () => fetch('/otro');
+$('conClave').onchange = () => { $('claveCaja').style.display = $('conClave').checked ? '' : 'none'; };
+$('crearSala').onclick = () => {
+  const clave = $('conClave').checked ? $('claveSala').value.trim() : '';
+  fetch('/crear?clave=' + encodeURIComponent(clave));
+};
+$('cerrarSala').onclick = () => fetch('/cerrar');
+$('empezar').onclick = () => verPantalla('juego');
+// El botón de cámara de la sala es el mismo del panel: lo pulsa y copia su estado.
+$('salaCam').onclick = () => $('camBoton').click();
+setInterval(() => {
+  const estado = $('camEstado').textContent;
+  $('salaCam').disabled = $('camBoton').disabled;
+  $('salaCam').textContent = estado.startsWith('activa') ? 'Cámara activada' : 'Activar cámara';
+  if (estado !== 'apagada') $('salaCamEstado').textContent = 'Cámara ' + estado;
+}, 300);
+$('porIp').onclick = () => { $('qrUrl').style.display = ''; };
+
+// El celular del jugador 1 muestra botones según cómo esté la laptop: se le avisa cuando cambia.
+let estadoEnviado = '';
+function avisarEstado() {
+  const texto = ($('camEstado').textContent.startsWith('activa') ? 1 : 0) + ',' + (enJuego ? 1 : 0);
+  if (texto === estadoEnviado) return;
+  estadoEnviado = texto;
+  fetch('/estado?e=' + texto);
+}
+setInterval(avisarEstado, 500);
+
+// Código QR con la dirección del mando web (la que abre el celular).
+function mostrarQr(url) {
+  $('qrUrl').textContent = 'En el navegador del celular escribe: ' + url;
+  if (typeof qrcode !== 'function') return;
+  const qr = qrcode(0, 'M');
+  qr.addData(url);
+  qr.make();
+  $('qr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true })
+    .replace('fill="white"', 'fill="#cfe0c3"').replace('fill="black"', 'fill="#1f363d"');
+}
+
+const eventos = new EventSource('/eventos');
+eventos.onmessage = (e) => {
+  const p = e.data.split(',');
+  if (p[0] === 's') {
+    for (const id of ['sala', 'crearNombre', 'salaNombre']) $(id).textContent = p[1];
+    return;
+  }
+  if (p[0] === 'a') {
+    // La sala se abrió o se cerró. Al recargar la página con la sala abierta se vuelve a ella.
+    salaAbierta = p[1] === '1';
+    $('salaClave').textContent = p[2] === '1' ? 'Sala · con contraseña' : 'Sala · sin contraseña';
+    if (!salaAbierta) verPantalla('crear');
+    else if (!enJuego) verPantalla('sala');
+    // Al abrir la sala se enciende la cámara sola (el navegador pide el permiso si hace falta).
+    if (salaAbierta && !$('camBoton').disabled && !video) activarCamara();
+    return;
+  }
+  if (p[0] === 'o') {
+    // Órdenes del jugador 1 desde su celular.
+    if (p[1] !== '1' || !salaAbierta) return;
+    if (p[2] === 'cam' && !$('camBoton').disabled) activarCamara();
+    if (p[2] === 'empezar') verPantalla('juego');
+    if (p[2] === 'sala') verPantalla('sala');
+    return;
+  }
+  if (p[0] === 'c' && enSala[p[1]]) {
+    enSala[p[1]].dentro = p[2] === '1';
+    if (p[2] !== '1') enSala[p[1]].nombre = '';
+    pintarJugadores();
+  }
+  if (p[0] === 'n' && enSala[p[1]]) { enSala[p[1]].nombre = p.slice(2).join(','); pintarJugadores(); }
+  if (p[0] === 'u') { mostrarQr(e.data.slice(2)); return; }
+  if (p[0] === 'n') { if (p[1] === '1') $('nombreJugador').textContent = p[2] ? '(' + p[2] + ')' : ''; return; }
+  if (p[0] === 'x') { if (p[1] === '1') cancelarCalibracion(); return; }
+  if (p[0] === 'k') {
+    // El celular manda el aviso dos veces por si una se pierde: se atiende una.
+    if (p[1] === '1' && performance.now() - ultimaCalibracion > 500) {
+      ultimaCalibracion = performance.now();
+      pulsoCalibrar();
+    }
+    return;
+  }
+  if (p[0] === 'c' && p[1] === '1') {
+    jugadorConectado = p[2] === '1';
+    $('estado').textContent = jugadorConectado ? 'conectado' : 'sin conectar';
+    if (!jugadorConectado) $('nombreJugador').textContent = '';
+    return;
+  }
+  if (p[0] !== 'd' || p[1] !== '1') return;
+  paquetes++;
+
+  // Android: X este, Y norte, Z arriba.  Three: X derecha, Y arriba, Z hacia el espectador.
+  const [x, y, z, w, ax, ay, az, marca] = p.slice(2).map(Number);
+  qSensor.set(x, z, -y, w);
+
+  $('acel').textContent = Math.hypot(ax, ay, az).toFixed(1);
+  integrarAvance(ax, ay, az, marca);
+};
+
+setInterval(() => { $('pps').textContent = paquetes; paquetes = 0; }, 1000);
+setInterval(() => { $('avance').textContent = (-avancePaleta()).toFixed(2); }, 100);
+
+// ---------- Filtro de la posición ----------
+// Filtro "One Euro": con la mano quieta suaviza mucho (quita el temblor) y con la mano
+// en movimiento suaviza poco (quita el retraso). También estima la velocidad.
+class FiltroEuro {
+  constructor(corteMin, beta, corteVel = 1) {
+    this.corteMin = corteMin;   // Hz: suavizado con la mano quieta (menor = más estable)
+    this.beta = beta;           // cuánto se relaja el suavizado al moverse (mayor = menos retraso)
+    this.corteVel = corteVel;
+    this.reiniciar();
+  }
+  reiniciar() { this.x = null; this.vel = 0; this.t = 0; }
+  static alfa(corte, dt) { return 1 / (1 + 1 / (2 * Math.PI * corte * dt)); }
+  filtrar(x, t) {
+    if (this.x === null) { this.x = x; this.vel = 0; this.t = t; return x; }
+    const dt = Math.max(t - this.t, 0.001);
+    this.t = t;
+    const velCruda = (x - this.x) / dt;
+    this.vel += (velCruda - this.vel) * FiltroEuro.alfa(this.corteVel, dt);
+    const corte = this.corteMin + this.beta * Math.abs(this.vel);
+    this.x += (x - this.x) * FiltroEuro.alfa(corte, dt);
+    return this.x;
+  }
+}
+// (beta menor que antes porque ahora se mide en troncos, que dan números unas 4-5 veces mayores)
+const filtroX = new FiltroEuro(0.3, 1.5), filtroY = new FiltroEuro(0.3, 2);
+const HOMBRO_IZQ = 11, HOMBRO_DER = 12, CADERA_IZQ = 23, CADERA_DER = 24;   // índices del modelo de pose
+let tronco = 0;                   // largo del tronco en la imagen (suavizado), en fracción del alto
+let caderaY = 0;                  // altura de las caderas en la imagen (suavizada)
+const ANTICIPO_S = 0.05;          // retraso de cámara y detección que se compensa adelantando la posición
+const ADELANTO_MAX_S = 0.15;      // nunca se adelanta más que esto
+const PERDIDA_S = 0.5;            // sin ver la muñeca este tiempo, el filtro empieza de cero
+let tMuneca = 0;                  // cuándo se vio la muñeca por última vez (segundos)
+let tDeteccion = 0;               // cuándo corrió la última detección (segundos)
+let vistaCamara = 2;              // qué ve la cámara: 0 = la muñeca, 2 = a nadie, 3 = el cuerpo sin la muñeca
+
+// ---------- Cámara: posición de la muñeca ----------
+const objetivo = new THREE.Vector3();   // dónde debe estar la raqueta según la cámara
+let pose = null, video = null;
+let manoDerecha = true;
+let detecciones = 0, ultimoCuadro = -1, delegadoUsado = '';
+let cuadrosCamara = 0;   // cuadros nuevos que entrega la cámara, se detecten o no
+let verImagen = true;    // si se muestra la imagen de la cámara arriba a la derecha
+
+async function crearPose(delegado) {
+  const { FilesetResolver, PoseLandmarker } = await import(`${MP}/vision_bundle.mjs`);
+  const archivos = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+  return PoseLandmarker.createFromOptions(archivos, {
+    baseOptions: { modelAssetPath: MODELO_POSE, delegate: delegado },
+    runningMode: 'VIDEO',
+    numPoses: 1,
+  });
+}
+
+// Abre la cámara indicada (o la que el navegador elija si no se indica).
+async function abrirCamara(idCamara) {
+  if (video) video.srcObject.getTracks().forEach((t) => t.stop());
+  const flujo = await navigator.mediaDevices.getUserMedia({
+    video: {
+      width: 640, height: 480, frameRate: 30,
+      ...(idCamara ? { deviceId: { exact: idCamara } } : {}),
+    },
+  });
+  const v = document.createElement('video');
+  v.muted = true;
+  v.playsInline = true;
+  v.srcObject = flujo;
+  await v.play();
+  video = v;
+  ultimoCuadro = -1;
+  // La imagen se muestra arriba a la derecha.
+  const vista = $('vistaCamara');
+  vista.querySelectorAll('video').forEach((anterior) => anterior.remove());
+  vista.appendChild(v);
+  vista.style.display = verImagen ? '' : 'none';
+  // Cuenta los cuadros que entrega la cámara, aparte de lo que tarde la detección.
+  if (v.requestVideoFrameCallback) {
+    const contar = () => {
+      if (video !== v) return;
+      cuadrosCamara++;
+      v.requestVideoFrameCallback(contar);
+    };
+    v.requestVideoFrameCallback(contar);
+  }
+  return flujo.getVideoTracks()[0];
+}
+
+// Lista las cámaras del equipo para poder elegir (las virtuales no sirven).
+async function listarCamaras(idActual) {
+  const camaras = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
+  const lista = $('camLista');
+  lista.innerHTML = '';
+  for (const c of camaras) {
+    const op = document.createElement('option');
+    op.value = c.deviceId;
+    op.textContent = c.label || 'Cámara';
+    op.selected = c.deviceId === idActual;
+    lista.appendChild(op);
+  }
+  lista.style.display = camaras.length > 1 ? '' : 'none';
+}
+
+async function activarCamara() {
+  $('camBoton').disabled = true;
+  try {
+    $('camEstado').textContent = 'cargando modelo…';
+    // En la laptop de Daniel la CPU detecta en 20-30 ms y la GPU en 50-65 ms: se empieza por CPU.
+    try {
+      pose = await crearPose('CPU');
+      delegadoUsado = 'CPU';
+    } catch (err) {
+      pose = await crearPose('GPU');
+      delegadoUsado = 'GPU';
+    }
+    $('camMotor').textContent = 'Motor: ' + delegadoUsado;
+    $('camMotor').disabled = false;
+    $('camEstado').textContent = 'pidiendo cámara…';
+    const pista = await abrirCamara(null);
+    await listarCamaras(pista.getSettings().deviceId);
+    $('camEstado').textContent = 'activa: ' + pista.label;
+  } catch (err) {
+    $('camEstado').textContent = 'error: ' + err.message;
+    $('camBoton').disabled = false;
+    pose = null;
+    video = null;
+  }
+}
+
+$('camLista').onchange = async () => {
+  try {
+    $('camEstado').textContent = 'cambiando de cámara…';
+    const pista = await abrirCamara($('camLista').value);
+    $('camEstado').textContent = 'activa: ' + pista.label;
+  } catch (err) {
+    $('camEstado').textContent = 'error: ' + err.message;
+  }
+};
+
+function leerCamara() {
+  if (!pose || !video || video.videoWidth === 0 || video.currentTime === ultimoCuadro) return;
+  ultimoCuadro = video.currentTime;
+  let r;
+  const inicio = performance.now();
+  try {
+    r = pose.detectForVideo(video, inicio);
+  } catch (err) {
+    // Un fallo de la detección no debe detener el resto de la página.
+    $('camEstado').textContent = 'error de detección: ' + err.message;
+    pose = null;
+    $('camBoton').disabled = false;
+    return;
+  }
+  detecciones++;
+  $('camMs').textContent = `${(performance.now() - inicio).toFixed(0)} ms (${delegadoUsado})`;
+  const cuerpo = r.landmarks[0];
+  const m = cuerpo && cuerpo[manoDerecha ? MUNECA_DER : MUNECA_IZQ];
+  tDeteccion = performance.now() / 1000;
+  if (!cuerpo) {
+    vistaCamara = 2;
+    marcarMuneca(null);
+    munecaVista = null;
+    $('camMano').textContent = 'no se ve a nadie';
+    return;
+  }
+  if (m.visibility < VISIBLE_MIN) {
+    vistaCamara = 3;
+    marcarMuneca(null);
+    munecaVista = null;
+    $('camMano').textContent = 'cuerpo visto, muñeca tapada';
+    return;
+  }
+  // Tronco: de la mitad de los hombros a la mitad de las caderas. Da la escala del cuerpo en la imagen.
+  const aspecto = video.videoWidth / video.videoHeight;   // para medir igual a lo ancho que a lo alto
+  const hI = cuerpo[HOMBRO_IZQ], hD = cuerpo[HOMBRO_DER], cI = cuerpo[CADERA_IZQ], cD = cuerpo[CADERA_DER];
+  const hombrosY = (hI.y + hD.y) / 2;
+  if (cI.visibility >= VISIBLE_MIN && cD.visibility >= VISIBLE_MIN) {
+    const caderasY = (cI.y + cD.y) / 2;
+    const largo = Math.hypot(((cI.x + cD.x) - (hI.x + hD.x)) / 2 * aspecto, caderasY - hombrosY);
+    if (largo > 0.05) {
+      // Se suavizan: el tronco no cambia de tamaño de un cuadro a otro, lo que cambia es el ruido.
+      tronco = tronco ? tronco + (largo - tronco) * 0.1 : largo;
+      caderaY = caderaY ? caderaY + (caderasY - caderaY) * 0.25 : caderasY;
+    }
+  } else if (tronco) {
+    caderaY = hombrosY + tronco;   // caderas tapadas: se estiman bajo los hombros
+  }
+  if (!tronco) {
+    vistaCamara = 3;
+    marcarMuneca(null);
+    munecaVista = null;
+    $('camMano').textContent = 'no se ven las caderas: aléjate un poco';
+    return;
+  }
+  vistaCamara = 0;
+  marcarMuneca(m);
+  const t = performance.now() / 1000;
+  if (t - tMuneca > PERDIDA_S) { filtroX.reiniciar(); filtroY.reiniciar(); }
+  tMuneca = t;
+  const u = (m.x - 0.5) * aspecto / tronco, v = (m.y - caderaY) / tronco;
+  munecaVista = new THREE.Vector2(filtroX.filtrar(u, t), filtroY.filtrar(v, t));
+  $('camMano').textContent = `${u.toFixed(2)} a lo ancho, ${v.toFixed(2)} a lo alto (en troncos)`;
+}
+
+// Coloca el objetivo de la raqueta según la última posición filtrada de la muñeca,
+// adelantada con su velocidad para compensar el retraso de la cámara.
+function apuntarRaqueta() {
+  if (!munecaVista) return;
+  const adelanto = Math.min(performance.now() / 1000 - tMuneca + ANTICIPO_S, ADELANTO_MAX_S);
+  const u = munecaVista.x + filtroX.vel * adelanto;
+  const v = munecaVista.y + filtroY.vel * adelanto;
+  // Cada extremo calibrado cae en un borde de la zona de juego; entre medias, en proporción.
+  const fx = (u - uIzquierda) / (uDerecha - uIzquierda);    // 0 = brazo a la izquierda, 1 = a la derecha
+  const fy = (v - vAbajo) / (vArriba - vAbajo);             // 0 = brazo abajo, 1 = arriba
+  const medioY = (ZONA_Y[0] + ZONA_Y[1]) / 2, mitadY = (ZONA_Y[1] - ZONA_Y[0]) / 2;
+  objetivo.set((2 * fx - 1) * ZONA_X * sensH, medioY + (2 * fy - 1) * mitadY * sensV, 0);
+}
+
+// Cambia el motor de la detección (GPU o CPU) para comparar cuál rinde más en este equipo.
+$('camMotor').onclick = async () => {
+  const nuevo = delegadoUsado === 'GPU' ? 'CPU' : 'GPU';
+  const anterior = pose;
+  pose = null;
+  $('camMotor').disabled = true;
+  $('camMotor').textContent = 'Motor: cambiando…';
+  try {
+    const creada = await crearPose(nuevo);
+    if (anterior) anterior.close();
+    pose = creada;
+    delegadoUsado = nuevo;
+  } catch (err) {
+    pose = anterior;
+    $('camEstado').textContent = `no se pudo usar ${nuevo}: ${err.message}`;
+  }
+  $('camMotor').textContent = 'Motor: ' + delegadoUsado;
+  $('camMotor').disabled = false;
+};
+
+$('camVer').onclick = () => {
+  verImagen = !verImagen;
+  $('camVer').textContent = verImagen ? 'Ocultar imagen' : 'Ver imagen';
+  $('vistaCamara').style.display = verImagen && video ? '' : 'none';
+};
+
+// Marca en la imagen el punto que se está siguiendo (la muñeca), o lo oculta si no se ve.
+function marcarMuneca(m) {
+  const punto = $('vistaPunto');
+  if (!m) { punto.style.display = 'none'; return; }
+  punto.style.display = 'block';
+  punto.style.left = ((1 - m.x) * 100) + '%';   // la imagen se muestra espejada
+  punto.style.top = (m.y * 100) + '%';
+}
+
+$('camBoton').onclick = activarCamara;
+function cambiarMano() {
+  manoDerecha = !manoDerecha;
+  $('camLado').textContent = `Mano: ${manoDerecha ? 'derecha' : 'izquierda'} (M)`;
+}
+$('camLado').onclick = cambiarMano;
+window.addEventListener('keydown', (e) => { if (e.key === 'm' || e.key === 'M') cambiarMano(); });
+setInterval(() => {
+  $('camFps').textContent = detecciones;
+  $('camCuadros').textContent = cuadrosCamara;
+  detecciones = 0;
+  cuadrosCamara = 0;
+}, 1000);
+
+window.addEventListener('error', (e) => { $('camEstado').textContent = 'error de página: ' + e.message; });
+
+// ---------- Pelota: física de ping pong ----------
+// Una sola pelota a la vez. Sale del otro lado, bota en la mitad del jugador y hay que
+// devolverla: vale si su primer bote tras el golpe es en la mitad contraria.
+const PELOTA_RADIO = 0.02 * M;         // 2 cm
+const HITBOX = 1.3;                    // la zona de golpe es 30 % más grande que la pala que se ve
+const GRAVEDAD = 9.81 * M;             // unidades por segundo²
+const REBOTE_MESA = 0.88;              // parte de la velocidad vertical que conserva al botar (de 30 cm sube a 23)
+const ROCE_MESA = 0.94;                // parte de la velocidad horizontal que conserva al botar
+const REBOTE_PALA = 0.7;               // elasticidad del golpe con la pala
+const ROCE_AIRE = 0.131 / M;           // frenado del aire: aceleración = -ROCE_AIRE · velocidad² (pelota de 40 mm y 2,7 g)
+const REBOTE_SUELO = 0.6;
+const SAQUE_VEL = [10.5, 16];            // velocidad horizontal con la que llega, mínima y máxima (cada pelota, al azar)
+const SAQUE_BOTE_X = [-2.4, 2.4];      // zona de la mitad del jugador donde bota
+const SAQUE_BOTE_Z = [RED_Z + 2.6, MESA_Z_CERCA - 0.9];
+const SAQUE_CRUCE_X = 2.8;              // la pelota llega al jugador a no más de esta distancia del centro
+const SAQUE_CRUCE_Y = [0.0, 1.5];      // entre estas alturas (la mesa está en -0,8)
+const SAQUE_CAIDA_MAX = 2.5;           // y sin venir cayendo más rápido que esto: llega cerca de lo más alto del bote
+const FUERA_Z = 3.0;                   // pasada esta distancia tras el jugador, la pelota se da por perdida
+const ESPERA_SAQUE = 0.45;              // segundos que la pelota se ve quieta, brillando, antes de salir
+const VIDA_FINAL = 0.9;                // segundos que sigue visible una pelota ya decidida
+const ARO_INICIAL = 0.45;              // radio extra del aro de llegada cuando la pelota sale
+const VEL_GOLPE = [5, 30];             // límites de la velocidad con que sale de la pala
+
+const geoPelota = new THREE.SphereGeometry(PELOTA_RADIO, 14, 10);
+const geoAro = new THREE.RingGeometry(0.93, 1, 32);
+let pelota = null;                     // { malla, brillo, vel, sombra, aro, espera, golpeada, botesMios, fin, vida, zSalida }
+let respondidas = 0;
+let proximaPelota = 1.5;               // segundos que faltan para lanzar la siguiente
+
+const entre = ([min, max]) => min + Math.random() * (max - min);
+const limitar = (v, min, max) => Math.min(Math.max(v, min), max);
+
+// Brillo de la pelota: un halo que siempre mira a la cámara, para verla de un vistazo.
+const texturaBrillo = (() => {
+  const lienzo = document.createElement('canvas');
+  lienzo.width = lienzo.height = 128;
+  const c = lienzo.getContext('2d');
+  const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255, 236, 170, 1)');
+  g.addColorStop(0.25, 'rgba(255, 190, 80, 0.75)');
+  g.addColorStop(1, 'rgba(255, 167, 38, 0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(lienzo);
+})();
+
+// Avanza la pelota un instante: gravedad, bote en la mesa, red y suelo.
+// Devuelve qué tocó: 'mesa', 'red', 'suelo' o ''.
+function avanzar(pos, vel, dt) {
+  const antesY = pos.y, antesZ = pos.z;
+  vel.y -= GRAVEDAD * dt;
+  vel.multiplyScalar(1 - ROCE_AIRE * vel.length() * dt);
+  pos.addScaledVector(vel, dt);
+
+  // Red: un plano vertical en mitad de la mesa.
+  if ((antesZ - RED_Z) * (pos.z - RED_Z) < 0 && Math.abs(pos.x) <= RED_MEDIO_ANCHO
+      && pos.y - PELOTA_RADIO < MESA_Y + RED_ALTO && pos.y > MESA_Y - 0.2) {
+    pos.z = antesZ;
+    vel.z *= -0.15; vel.x *= 0.4; vel.y *= 0.4;
+    return 'red';
+  }
+  // Mesa: bota si baja y cruza la superficie dentro del tablero.
+  const tope = MESA_Y + PELOTA_RADIO;
+  if (vel.y < 0 && antesY >= tope && pos.y < tope
+      && Math.abs(pos.x) <= MESA_MEDIO_ANCHO + PELOTA_RADIO && pos.z <= MESA_Z_CERCA + PELOTA_RADIO && pos.z >= MESA_Z_LEJOS - PELOTA_RADIO) {
+    pos.y = tope + (tope - pos.y) * REBOTE_MESA;
+    vel.y *= -REBOTE_MESA; vel.x *= ROCE_MESA; vel.z *= ROCE_MESA;
+    return 'mesa';
+  }
+  const piso = SUELO_Y + PELOTA_RADIO;
+  if (pos.y < piso) {
+    pos.y = piso;
+    vel.y *= -REBOTE_SUELO; vel.x *= 0.8; vel.z *= 0.8;
+    return 'suelo';
+  }
+  return '';
+}
+
+function lanzarPelota() {
+  // Se prueban saques al azar hasta dar con uno que bote una vez en la mitad del jugador
+  // y cruce su plano por una zona a la que la paleta llega.
+  let salida, vel, cruce;
+  for (let prueba = 0; prueba < 300; prueba++) {
+    salida = new THREE.Vector3(entre([-2, 2]), MESA_Y + entre([1.0, 1.8]), MESA_Z_LEJOS - 0.4);
+    const bote = new THREE.Vector3(entre(SAQUE_BOTE_X), MESA_Y + PELOTA_RADIO, entre(SAQUE_BOTE_Z));
+    const horizontal = Math.hypot(bote.x - salida.x, bote.z - salida.z);
+    // Con la velocidad horizontal elegida, la vertical inicial sale de exigir que caiga en el punto de bote.
+    const t = horizontal / entre(SAQUE_VEL);
+    vel = new THREE.Vector3((bote.x - salida.x) / t, (bote.y - salida.y + 0.5 * GRAVEDAD * t * t) / t, (bote.z - salida.z) / t);
+    // Se adelanta el mismo movimiento que hará la pelota (con el frenado del aire, que la fórmula no cuenta).
+    const p = salida.clone(), v = vel.clone();
+    let botes = 0, mal = false;
+    for (let i = 0; i < 1500 && p.z < 0 && !mal; i++) {
+      const toco = avanzar(p, v, 1 / 480);
+      if (toco === 'mesa') { if (p.z > RED_Z) botes++; else mal = true; }
+      if (toco === 'red' || toco === 'suelo') mal = true;
+    }
+    cruce = p;
+    if (!mal && botes === 1 && Math.abs(p.x) <= SAQUE_CRUCE_X && p.y >= SAQUE_CRUCE_Y[0] && p.y <= SAQUE_CRUCE_Y[1] && v.y >= -SAQUE_CAIDA_MAX) break;
+  }
+
+  // Material sin sombreado: la pelota se ve siempre con su color pleno.
+  const malla = new THREE.Mesh(geoPelota, new THREE.MeshBasicMaterial({ color: 0xffc04d, transparent: true }));
+  malla.position.copy(salida);
+  escena.add(malla);
+  const brillo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaBrillo, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  brillo.scale.setScalar(PELOTA_RADIO * 9);
+  malla.add(brillo);
+  const sombra = crearSombra();
+  sombra.scale.setScalar(PELOTA_RADIO * 1.5);
+
+  // Aro de llegada: el punto del plano del jugador por donde va a cruzar la pelota.
+  const aro = new THREE.Mesh(geoAro, new THREE.MeshBasicMaterial({ color: 0xffa726, transparent: true, depthTest: false }));
+  aro.position.set(cruce.x, cruce.y, 0);
+  aro.renderOrder = 10;   // siempre por encima, aunque la paleta lo tape
+  escena.add(aro);
+
+  pelota = { malla, brillo, vel, sombra, aro, espera: ESPERA_SAQUE, golpeada: false, botesMios: 0, fin: false, vida: VIDA_FINAL, zSalida: salida.z };
+}
+
+function quitarAro() {
+  if (!pelota.aro) return;
+  escena.remove(pelota.aro);
+  pelota.aro.material.dispose();
+  pelota.aro = null;
+}
+
+function quitarPelota() {
+  quitarAro();
+  escena.remove(pelota.sombra);
+  escena.remove(pelota.malla);
+  pelota.malla.material.dispose();
+  pelota.brillo.material.dispose();
+  pelota = null;
+  proximaPelota = 0;   // la siguiente sale en cuanto esta desaparece
+}
+
+// La pelota ya está decidida: se muestra el resultado y se deja desvanecer.
+let avisoResultado = 0;
+function terminar(texto, buena = false) {
+  if (pelota.fin) return;
+  pelota.fin = true;
+  quitarAro();
+  if (buena) {
+    respondidas++;
+    $('contador').textContent = 'Respondidas: ' + respondidas;
+  }
+  $('resultado').textContent = texto;
+  $('resultado').style.color = buena ? '#cfe0c3' : '#ffa726';
+  clearTimeout(avisoResultado);
+  avisoResultado = setTimeout(() => { $('resultado').textContent = ''; }, 1300);
+}
+
+// Posición de la raqueta en el cuadro anterior, para medir su movimiento.
+const inversaAhora = new THREE.Matrix4();
+const inversaAntes = new THREE.Matrix4();
+const centroPala = new THREE.Vector3();
+const centroPalaAntes = new THREE.Vector3();
+const CENTRO_LOCAL = new THREE.Vector3(0, 0, PALA_CENTRO_Z);
+let hayCuadroAnterior = false;
+
+// ¿La pelota tocó la pala entre el cuadro anterior y este?
+// Se mira el recorrido de la pelota desde el punto de vista de la raqueta, así cuenta
+// tanto que la pelota llegue a la pala como que la pala vaya hacia la pelota.
+// Solo se considera el disco de la pala: el mango no golpea.
+function tocaPala(antes, ahora) {
+  const a = antes.clone().applyMatrix4(inversaAntes).sub(CENTRO_LOCAL);
+  const b = ahora.clone().applyMatrix4(inversaAhora).sub(CENTRO_LOCAL);
+  const radioPelota = PELOTA_RADIO / escalaRaqueta;
+  const grosor = PALA_MEDIO_GROSOR + radioPelota;
+  const cruzo = (a.y > 0) !== (b.y > 0);
+  if (!cruzo && Math.abs(b.y) > grosor) return false;
+  // Punto donde cruza el plano de la pala (o el punto actual si aún no lo cruza).
+  const punto = cruzo ? a.lerp(b, a.y / (a.y - b.y)) : b;
+  return Math.hypot(punto.x, punto.z / PALA_ALARGUE) <= PALA_RADIO * HITBOX + radioPelota;
+}
+
+// Ayuda al devolver: la velocidad con la que la pelota caería en la mitad contraria si se
+// conserva hacia dónde la mandó el golpe (izquierda o derecha) y qué tan fuerte fue (corta o larga).
+// Devuelve null si el golpe mandó la pelota hacia atrás: ahí no hay nada que ayudar.
+function velocidadAyudada(pos, v) {
+  if (v.z > -1) return null;
+  const horizontal = Math.hypot(v.x, v.z);
+  const fuerza = limitar((horizontal - 8) / 14, 0, 1);
+  const zCae = RED_Z - (1.4 + fuerza * 2.8);
+  const xCae = limitar(pos.x + v.x / -v.z * (pos.z - zCae), -(MESA_MEDIO_ANCHO - 0.5), MESA_MEDIO_ANCHO - 0.5);
+  const dx = xCae - pos.x, dz = zCae - pos.z, largo = Math.hypot(dx, dz);
+  let rapidez = limitar(horizontal, 11, 20);
+  const ideal = new THREE.Vector3();
+  for (let intento = 0; intento < 20; intento++) {
+    const t = largo / rapidez;
+    ideal.set(dx / t, (MESA_Y + PELOTA_RADIO - pos.y + 0.5 * GRAVEDAD * t * t) / t, dz / t);
+    // Se comprueba con el movimiento real (el aire la frena): si da en la red, un arco más alto.
+    const p = pos.clone(), w = ideal.clone();
+    let toco = '';
+    for (let i = 0; i < 1500 && !toco; i++) toco = avanzar(p, w, 1 / 480);
+    if (toco === 'mesa' && p.z < RED_Z) break;
+    rapidez *= 0.93;
+  }
+  return ideal;
+}
+
+// Golpe: choque de la pelota con la cara de la pala, que se está moviendo.
+// En el sistema de la pala la pelota rebota contra su cara con la elasticidad REBOTE_PALA;
+// al volver al sistema de la sala se le suma la velocidad de la pala.
+function responder(dt) {
+  const normal = new THREE.Vector3(0, 1, 0).transformDirection(raqueta.matrixWorld);
+  const velPala = centroPala.clone().sub(centroPalaAntes).divideScalar(dt);
+  const relativa = pelota.vel.clone().sub(velPala);
+  if (relativa.dot(normal) > 0) normal.negate();
+  const impacto = -relativa.dot(normal);
+  pelota.vel.copy(relativa).addScaledVector(normal, (1 + REBOTE_PALA) * impacto).add(velPala);
+  pelota.vel.clampLength(VEL_GOLPE[0], VEL_GOLPE[1]);
+  const ideal = ayudaGolpe > 0 ? velocidadAyudada(pelota.malla.position, pelota.vel) : null;
+  if (ideal) pelota.vel.lerp(ideal, ayudaGolpe);
+  pelota.golpeada = true;
+  quitarAro();
+  pelota.malla.material.color.set(0xffffff);
+  pelota.brillo.material.opacity = 0.5;
+  vibrar(Math.round(Math.min(Math.max(30 + impacto * 6, 40), 120)));
+}
+
+const PASOS_FISICA = 4;   // la física se calcula en pasos más cortos que un cuadro, para no saltarse botes
+
+function moverPelotas(dt) {
+  raqueta.updateMatrixWorld();
+  inversaAhora.copy(raqueta.matrixWorld).invert();
+  centroPala.copy(CENTRO_LOCAL).applyMatrix4(raqueta.matrixWorld);
+  if (!hayCuadroAnterior) {
+    inversaAntes.copy(inversaAhora);
+    centroPalaAntes.copy(centroPala);
+    hayCuadroAnterior = true;
+  }
+
+  // Solo hay pelotas con un jugador conectado, fuera de la calibración y con la práctica empezada.
+  if (!pelota && jugadorConectado && paso === 0 && enJuego) {
+    proximaPelota -= dt;
+    if (proximaPelota <= 0) lanzarPelota();
+  }
+
+  if (pelota) {
+    const pos = pelota.malla.position;
+    const antes = pos.clone();
+    // Antes de salir se queda quieta un momento, latiendo, para que dé tiempo a verla.
+    const quieta = pelota.espera > 0;
+    if (quieta) {
+      pelota.espera -= dt;
+      pelota.brillo.scale.setScalar(PELOTA_RADIO * (11 + 4 * Math.sin(performance.now() / 90)));
+      if (pelota.espera <= 0) pelota.brillo.scale.setScalar(PELOTA_RADIO * 9);
+    }
+    for (let i = 0; i < PASOS_FISICA && !quieta; i++) {
+      const toco = avanzar(pos, pelota.vel, dt / PASOS_FISICA);
+      if (!toco || pelota.fin) continue;
+      if (!pelota.golpeada) {
+        if (toco === 'mesa' && pos.z > RED_Z && ++pelota.botesMios >= 2) terminar('Botó dos veces');
+        if (toco === 'suelo') terminar('Se te pasó');
+        if (toco === 'red') terminar('');
+      } else if (toco === 'mesa') {
+        if (pos.z < RED_Z) terminar('¡Buena!', true); else terminar('Botó en tu lado');
+      } else if (toco === 'red') {
+        terminar('A la red');
+      } else {
+        terminar('Fuera');
+      }
+    }
+    if (!pelota.fin && !pelota.golpeada && tocaPala(antes, pos)) responder(dt);
+    if (!pelota.fin && !pelota.golpeada && pos.z > FUERA_Z) terminar('Se te pasó');
+
+    // Sombra: sobre la mesa si la pelota está encima de ella; si no, en el suelo.
+    const sobreMesa = pos.y >= MESA_Y && Math.abs(pos.x) <= MESA_MEDIO_ANCHO && pos.z <= MESA_Z_CERCA && pos.z >= MESA_Z_LEJOS;
+    pelota.sombra.position.set(pos.x, (sobreMesa ? MESA_Y : SUELO_Y) + 0.012, pos.z);
+    if (pelota.aro) {
+      // El aro se cierra y se hace más visible a medida que la pelota se acerca.
+      const falta = limitar(pos.z / pelota.zSalida, 0, 1);
+      pelota.aro.scale.setScalar(PELOTA_RADIO * 1.6 + ARO_INICIAL * falta);
+      pelota.aro.material.opacity = 0.25 + 0.6 * (1 - falta);
+    }
+    if (pelota.fin) {
+      pelota.vida -= dt;
+      pelota.malla.material.opacity = Math.max(pelota.vida / VIDA_FINAL, 0);
+      pelota.brillo.material.opacity = 0.5 * pelota.malla.material.opacity;
+      if (pelota.vida <= 0) quitarPelota();
+    }
+  }
+
+  inversaAntes.copy(inversaAhora);
+  centroPalaAntes.copy(centroPala);
+}
+
+let tiempoAnterior = performance.now();
+
+renderer.setAnimationLoop(() => {
+  const ahora = performance.now();
+  const dt = Math.min((ahora - tiempoAnterior) / 1000, 0.05);
+  tiempoAnterior = ahora;
+
+  leerCamara();
+  apuntarRaqueta();
+  // El filtro ya quitó el temblor; aquí solo se disimula el paso de 30 a 60 cuadros.
+  raqueta.position.lerp(objetivo, 0.6);
+  // La profundidad no se suaviza: sale directa del gesto de golpear.
+  raqueta.position.z = avancePaleta();
+  raqueta.quaternion.copy(qCentro).multiply(qSensor);
+  if (dt > 0) moverPelotas(dt);
+  renderer.render(escena, camara);
+});
+</script>
+</body>
+</html>
