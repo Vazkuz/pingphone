@@ -38,6 +38,9 @@
   .punto.mal { background: var(--rojo); }
   #avisoCam { display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--bola); color: var(--fondo); border-radius: 10px; }
   #avisoCam button { height: 54px; background: var(--fondo); color: #fff; border: 0; border-radius: 8px; font-size: 20px; }
+  .nivel { height: 52px; padding: 0 22px; display: inline-flex; align-items: center; justify-content: center; font: 600 18px Figtree, system-ui, sans-serif;
+           color: var(--texto); background: transparent; border: 2px solid var(--texto); border-radius: 8px; }
+  .nivel.elegido { background: var(--texto); color: var(--fondo); }
   .salida { height: 60px; display: flex; align-items: center; justify-content: center; gap: 12px; background: var(--tarjeta); color: var(--texto);
             font: 600 19px Figtree, system-ui, sans-serif; border: 2px solid var(--linea); border-radius: 10px; }
   .pie { padding-top: 16px; border-top: 1px solid var(--linea); font-size: 14px; line-height: 1.45; color: var(--sec); }
@@ -100,11 +103,24 @@
       <button class="titulo" id="camara" hidden>Activar cámara</button>
     </div>
     <div class="tarjeta" id="enCurso" hidden style="gap:6px">
-      <div class="titulo" style="font-size:28px;line-height:1.05">Entrenamiento en curso</div>
-      <p>Mira la laptop: tu celular es la paleta.</p>
+      <div class="titulo" style="font-size:24px;line-height:1.05">Entrenamiento en curso</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+        <div style="font-size:15px;font-weight:600;color:var(--sec)">Dificultad</div>
+        <div class="nivel elegido" id="nivelActual">Medio</div>
+      </div>
     </div>
     <div id="jefe" hidden style="display:flex;flex-direction:column;gap:12px">
       <button class="rojo titulo" id="empezar" style="height:64px">Empezar entrenamiento</button>
+      <div class="tarjeta" id="niveles" hidden style="gap:12px;padding:18px">
+        <div class="fila">
+          <div class="titulo" style="font-size:24px;line-height:1.05">Elige la dificultad</div>
+          <button class="enlace" id="nivelesCancelar">Cancelar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button class="nivel" data-nivel="0">Fácil</button><button class="nivel" data-nivel="1">Medio</button>
+          <button class="nivel" data-nivel="2">Difícil</button><button class="nivel" data-nivel="3">Muy difícil</button>
+        </div>
+      </div>
     </div>
     <button class="borde titulo" id="calibrar" style="height:64px">Calibrar</button>
     <div class="error" id="aviso2" hidden></div>
@@ -326,7 +342,9 @@ function alMensaje(texto) {
       $('avisoIconoMano').style.display = problema === 1 ? 'none' : '';
       $('camara').hidden = !(problema === 1 && miId === 1);   // solo el jugador 1 maneja la laptop
     }
-    $('empezar').hidden = juego;
+    $('empezar').hidden = juego || !$('niveles').hidden;
+    if (juego) $('niveles').hidden = true;
+    $('nivelActual').textContent = ['Fácil', 'Medio', 'Difícil', 'Muy difícil'][Number(p[4])] || 'Medio';
     $('volver').hidden = !(juego && miId === 1);
     $('enCurso').hidden = !juego;
   }
@@ -398,7 +416,10 @@ function mostrarPaso(paso, aviso) {
 }
 function mandar(texto) { if (ctrl && ctrl.readyState === 'open') ctrl.send(texto); }
 $('calibrar').onclick = () => mandar('cal');
-$('empezar').onclick = () => mandar('empezar');
+// «Empezar entrenamiento» abre los cuatro niveles; al tocar uno empieza.
+$('empezar').onclick = () => { $('niveles').hidden = false; $('empezar').hidden = true; };
+$('nivelesCancelar').onclick = () => { $('niveles').hidden = true; $('empezar').hidden = false; };
+for (const boton of document.querySelectorAll('#niveles .nivel')) boton.onclick = () => mandar('empezar,' + boton.dataset.nivel);
 $('volver').onclick = () => mandar('sala');
 $('camara').onclick = () => mandar('cam');
 $('calOk').onclick = () => mandar('cal');

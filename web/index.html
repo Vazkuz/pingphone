@@ -32,6 +32,8 @@
   #salirJuego { position: fixed; top: 18px; left: 20px; z-index: 6; height: 48px; margin: 0; padding: 0 18px 0 14px; align-items: center; gap: 10px;
                 font: 600 17px Figtree, system-ui, sans-serif; color: #cfe0c3; background: rgba(31, 54, 61, .9); border: 2px solid #40798c; border-radius: 10px; cursor: pointer; }
   #salirJuego:hover { border-color: #cfe0c3; }
+  #rotuloJuego { position: fixed; left: 20px; bottom: 18px; z-index: 6; font: 600 16px Figtree, system-ui, sans-serif; color: #cfe0c3;
+                 background: rgba(31, 54, 61, .88); padding: 4px 12px; border-radius: 8px; }
   #contador { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); font-size: 30px; font-weight: 800; color: #cfe0c3; font-family: 'Bricolage Grotesque', system-ui, sans-serif;
               background: rgba(31,54,61,.88); padding: 2px 16px; border-radius: 8px; }
   #resultado:empty { display: none; }
@@ -53,6 +55,8 @@
   .pantalla .rojo:disabled { opacity: .5; cursor: default; }
   .pantalla .borde { height: 52px; padding: 0 18px; font: 500 16px Figtree, system-ui, sans-serif; color: #cfe0c3; background: transparent; border: 2px solid #40798c; border-radius: 8px; cursor: pointer; }
   .pantalla .borde:disabled { opacity: .55; cursor: default; }
+  .pantalla .nivel { height: 52px; font: 600 18px Figtree, system-ui, sans-serif; color: #cfe0c3; background: transparent; border: 2px solid #cfe0c3; border-radius: 8px; cursor: pointer; }
+  .pantalla .nivel:hover { background: #cfe0c3; color: #1f363d; }
   .pantalla .enlace { background: none; border: 0; padding: 0; font-size: 15px; color: #cfe0c3; text-decoration: underline; cursor: pointer; }
   .pantalla input[type=text] { box-sizing: border-box; height: 52px; padding: 0 16px; color: #fff; background: #27444d; border: 2px solid #40798c; border-radius: 8px; font: 500 20px Figtree, system-ui, sans-serif; }
   .pantalla input::placeholder { color: #9ec1a3; font-style: italic; }
@@ -138,7 +142,17 @@
       </div>
       <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
         <button class="rojo titular" id="empezar">Empezar entrenamiento</button>
-        <div class="sec" style="font-size:15px">Se puede empezar con un solo jugador.</div>
+        <div class="sec" id="empezarNota" style="font-size:15px">Se puede empezar con un solo jugador.</div>
+        <div id="niveles" style="display:none;flex-direction:column;gap:12px;padding:18px;background:#27444d;border-radius:10px;min-width:340px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:20px">
+            <div class="titular" style="font-size:24px;line-height:1.05">Elige la dificultad</div>
+            <button class="enlace" id="nivelesCancelar">Cancelar</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <button class="nivel" data-nivel="0">Fácil</button><button class="nivel" data-nivel="1">Medio</button>
+            <button class="nivel" data-nivel="2">Difícil</button><button class="nivel" data-nivel="3">Muy difícil</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="columna" style="flex:0 1 360px;gap:16px">
@@ -157,6 +171,7 @@
 </div>
 
 <div id="contador">Respondidas: 0</div>
+<div id="rotuloJuego" style="display:none"></div>
 <div id="resultado"></div>
 <div id="vistaCamara" style="display:none"><div id="vistaPunto"></div></div>
 <div id="guia" style="display:none">
@@ -514,6 +529,16 @@ const OLVIDO_SESGO_S = 0.5;
 const GESTO_MAX_S = 1.0;             // ningún golpe dura más: si pasa, lo medido era error del sensor
 const AVANCE_MAX = 2.5, RETROCESO_MAX = 0.8;   // límites, en unidades de juego
 let gananciaAvance = 1;              // ajuste del panel
+// Dificultad del entrenamiento. «vel» es el ritmo de la pelota: recorre las mismas trayectorias que en
+// Medio, pero más despacio o más deprisa (1,2 = 20 % más rápida). «aro» dice si se muestra el aro de
+// llegada y «espera» multiplica el tiempo que la pelota se ve quieta antes de salir.
+const NIVELES = [
+  { nombre: 'Fácil', vel: 0.8, aro: true, espera: 1 },
+  { nombre: 'Medio', vel: 1, aro: true, espera: 1 },
+  { nombre: 'Difícil', vel: 1.2, aro: false, espera: 1 },
+  { nombre: 'Muy difícil', vel: 1.5, aro: false, espera: 0.5 },
+];
+let dificultad = 1;
 let ayudaGolpe = 0.8;                // ajuste del panel: 0 = física pura, 1 = la devolución siempre cae en la mesa contraria
 let sesgoZ = 0, velZ = 0, posZ = 0;  // en metros; Z negativo = hacia la mesa
 let tAcel = 0, enReposo = 0, enGesto = 0;
@@ -794,8 +819,9 @@ let enJuego = false;                 // false mientras se ve «Crear sala» o «
 let salaAbierta = false;
 const enSala = [null, { dentro: false, nombre: '' }, { dentro: false, nombre: '' }];   // jugadores 1 y 2
 
-// Pantalla completa durante el entrenamiento. El navegador solo la concede justo después de un clic
-// o una tecla en esta laptop: si el entrenamiento se empieza desde el celular, puede negarla.
+// Pantalla completa mientras la sala está abierta. El navegador solo la concede justo después de un clic
+// o una tecla en esta laptop (no sirve una orden que llega del celular): por eso se pide al pulsar
+// «Crear sala» y, si se perdió (tecla Esc, página recargada), en el siguiente clic o tecla en la laptop.
 function pantallaCompleta(entrar) {
   try {
     if (entrar && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
@@ -810,10 +836,12 @@ function verPantalla(cual) {         // 'crear', 'sala', 'juego' o 'calibrar' (l
   if (cual !== 'calibrar') calibraDesdeSala = false;
   enJuego = cual === 'juego';
   $('salirJuego').style.display = enJuego ? 'inline-flex' : 'none';
-  if (cual !== 'calibrar') pantallaCompleta(enJuego);
+  $('rotuloJuego').style.display = enJuego ? '' : 'none';
+  if (cual !== 'sala') verNiveles(false);
   avisarEstado();
 }
 
+let relojSalaVacia = 0;
 function pintarJugadores() {
   let cuantos = 0;
   for (const id of [1, 2]) {
@@ -831,11 +859,36 @@ pintarJugadores();
 $('otroNombre').onclick = () => servidor('/otro');
 $('conClave').onchange = () => { $('claveCaja').style.display = $('conClave').checked ? '' : 'none'; };
 $('crearSala').onclick = () => {
+  quiereCompleta = true;
+  pantallaCompleta(true);
   const clave = $('conClave').checked ? $('claveSala').value.trim() : '';
   servidor('/crear?clave=' + encodeURIComponent(clave));
 };
-$('cerrarSala').onclick = () => servidor('/cerrar');
-$('empezar').onclick = () => verPantalla('juego');
+$('cerrarSala').onclick = () => { pantallaCompleta(false); servidor('/cerrar'); };
+// Si la pantalla completa se perdió sin que el usuario lo pidiera (página recargada), se recupera en el
+// siguiente clic o tecla. Si la quitó él con Esc, se respeta hasta que pulse «Empezar entrenamiento».
+let quiereCompleta = true;
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && salaAbierta) quiereCompleta = false; });
+for (const gesto of ['pointerdown', 'keydown']) {
+  window.addEventListener(gesto, (e) => {
+    const enCerrar = e.target instanceof Element && e.target.closest('#cerrarSala');
+    if (salaAbierta && quiereCompleta && e.key !== 'Escape' && !enCerrar) pantallaCompleta(true);
+  });
+}
+// «Empezar entrenamiento» abre los cuatro niveles; al elegir uno empieza.
+function verNiveles(ver) {
+  $('niveles').style.display = ver ? 'flex' : 'none';
+  $('empezar').style.display = $('empezarNota').style.display = ver ? 'none' : '';
+}
+function empezarEntrenamiento(nivel) {
+  dificultad = NIVELES[nivel] ? nivel : 1;
+  verNiveles(false);
+  $('rotuloJuego').textContent = 'Sala ' + $('salaNombre').textContent + ' · ' + NIVELES[dificultad].nombre;
+  verPantalla('juego');
+}
+$('empezar').onclick = () => { quiereCompleta = true; pantallaCompleta(true); verNiveles(true); };
+$('nivelesCancelar').onclick = () => verNiveles(false);
+for (const boton of document.querySelectorAll('#niveles .nivel')) boton.onclick = () => empezarEntrenamiento(Number(boton.dataset.nivel));
 $('salirJuego').onclick = () => verPantalla('sala');
 // El botón de cámara de la sala es el mismo del panel: lo pulsa y copia su estado.
 $('salaCam').onclick = () => $('camBoton').click();
@@ -857,7 +910,7 @@ function avisarEstado() {
   let problema = salaAbierta && !camara.startsWith('cargando') && !camara.startsWith('pidiendo') ? avisoCamara() : AVISO_NINGUNO;
   if (problema !== problemaVisto) { problemaVisto = problema; problemaDesde = performance.now(); }
   if (problema !== AVISO_NINGUNO && performance.now() - problemaDesde < 1000) problema = AVISO_NINGUNO;
-  const texto = (camara.startsWith('activa') ? 1 : 0) + ',' + (enJuego ? 1 : 0) + ',' + problema;
+  const texto = (camara.startsWith('activa') ? 1 : 0) + ',' + (enJuego ? 1 : 0) + ',' + problema + ',' + dificultad;
   if (texto === estadoEnviado) return;
   estadoEnviado = texto;
   servidor('/estado?e=' + texto);
@@ -896,7 +949,7 @@ function alEvento(e) {
     // Órdenes del jugador 1 desde su celular.
     if (p[1] !== '1' || !salaAbierta) return;
     if (p[2] === 'cam' && !$('camBoton').disabled) activarCamara();
-    if (p[2] === 'empezar') verPantalla('juego');
+    if (p[2] === 'empezar') empezarEntrenamiento(Number(p[3]));
     if (p[2] === 'sala') verPantalla('sala');
     return;
   }
@@ -904,6 +957,12 @@ function alEvento(e) {
     enSala[p[1]].dentro = p[2] === '1';
     if (p[2] !== '1') enSala[p[1]].nombre = '';
     pintarJugadores();
+    // Si no queda nadie durante el entrenamiento, se vuelve a la sala. Se esperan unos segundos
+    // por si solo fue un corte y el celular vuelve a entrar.
+    clearTimeout(relojSalaVacia);
+    if (!enSala[1].dentro && !enSala[2].dentro) {
+      relojSalaVacia = setTimeout(() => { if (enJuego && !enSala[1].dentro && !enSala[2].dentro) verPantalla('sala'); }, 4000);
+    }
   }
   if (p[0] === 'n' && enSala[p[1]]) { enSala[p[1]].nombre = p.slice(2).join(','); pintarJugadores(); }
   if (p[0] === 'u') { mostrarQr(e.data.slice(2)); return; }
@@ -1329,12 +1388,16 @@ function lanzarPelota() {
   sombra.scale.setScalar(PELOTA_RADIO * 1.5);
 
   // Aro de llegada: el punto del plano del jugador por donde va a cruzar la pelota.
-  const aro = new THREE.Mesh(geoAro, new THREE.MeshBasicMaterial({ color: 0xffa726, transparent: true, depthTest: false }));
-  aro.position.set(cruce.x, cruce.y, 0);
-  aro.renderOrder = 10;   // siempre por encima, aunque la paleta lo tape
-  escena.add(aro);
+  // (Los niveles difíciles no lo muestran.)
+  let aro = null;
+  if (NIVELES[dificultad].aro) {
+    aro = new THREE.Mesh(geoAro, new THREE.MeshBasicMaterial({ color: 0xffa726, transparent: true, depthTest: false }));
+    aro.position.set(cruce.x, cruce.y, 0);
+    aro.renderOrder = 10;   // siempre por encima, aunque la paleta lo tape
+    escena.add(aro);
+  }
 
-  pelota = { malla, brillo, vel, sombra, aro, espera: ESPERA_SAQUE, golpeada: false, botesMios: 0, fin: false, vida: VIDA_FINAL, zSalida: salida.z };
+  pelota = { malla, brillo, vel, sombra, aro, espera: ESPERA_SAQUE * NIVELES[dificultad].espera, golpeada: false, botesMios: 0, fin: false, vida: VIDA_FINAL, zSalida: salida.z };
 }
 
 function quitarAro() {
@@ -1425,10 +1488,13 @@ function velocidadAyudada(pos, v) {
 function responder(dt) {
   const normal = new THREE.Vector3(0, 1, 0).transformDirection(raqueta.matrixWorld);
   const velPala = centroPala.clone().sub(centroPalaAntes).divideScalar(dt);
-  const relativa = pelota.vel.clone().sub(velPala);
+  // La pelota se mueve al ritmo del nivel: su velocidad real en pantalla es la suya por ese ritmo.
+  // El choque se calcula con la real (la pala sí va a tiempo real) y luego se deshace el cambio.
+  const ritmo = NIVELES[dificultad].vel;
+  const relativa = pelota.vel.clone().multiplyScalar(ritmo).sub(velPala);
   if (relativa.dot(normal) > 0) normal.negate();
   const impacto = -relativa.dot(normal);
-  pelota.vel.copy(relativa).addScaledVector(normal, (1 + REBOTE_PALA) * impacto).add(velPala);
+  pelota.vel.copy(relativa).addScaledVector(normal, (1 + REBOTE_PALA) * impacto).add(velPala).divideScalar(ritmo);
   pelota.vel.clampLength(VEL_GOLPE[0], VEL_GOLPE[1]);
   const ideal = ayudaGolpe > 0 ? velocidadAyudada(pelota.malla.position, pelota.vel) : null;
   if (ideal) pelota.vel.lerp(ideal, ayudaGolpe);
@@ -1468,7 +1534,7 @@ function moverPelotas(dt) {
       if (pelota.espera <= 0) pelota.brillo.scale.setScalar(PELOTA_RADIO * 9);
     }
     for (let i = 0; i < PASOS_FISICA && !quieta; i++) {
-      const toco = avanzar(pos, pelota.vel, dt / PASOS_FISICA);
+      const toco = avanzar(pos, pelota.vel, dt * NIVELES[dificultad].vel / PASOS_FISICA);
       if (!toco || pelota.fin) continue;
       if (!pelota.golpeada) {
         if (toco === 'mesa' && pos.z > RED_Z && ++pelota.botesMios >= 2) terminar('Botó dos veces');
@@ -1546,7 +1612,7 @@ let nombreSala = '';
 let codigoSala = '';              // lo que distingue esta sala de las de otras personas; va en el QR
 let claveSala = '';               // contraseña ('' = sin contraseña)
 let abierta = false;
-let estadoLaptop = '0,0,0';       // «cámara activa, práctica en curso, problema de la cámara», para el celular
+let estadoLaptop = '0,0,0,1';     // «cámara activa, entrenamiento en curso, problema de la cámara, dificultad», para el celular
 let supa = null, canal = null;
 // celular -> { id, celular, nombre, ultimo, paso, aviso, pc, ctrl, listo }
 const jugadores = new Map();
@@ -1588,7 +1654,7 @@ function alControl(j, texto) {
   j.ultimo = Date.now();
   if (texto === 'cal') { emitir(`k,${j.id}`); return; }
   if (texto === 'calx') { j.paso = 0; j.aviso = 0; emitir(`x,${j.id}`); return; }
-  if (texto === 'cam' || texto === 'empezar' || texto === 'sala') { emitir(`o,${j.id},${texto}`); return; }
+  if (texto === 'cam' || texto === 'sala' || /^empezar,[0-3]$/.test(texto)) { emitir(`o,${j.id},${texto}`); return; }
   if (texto.startsWith('nombre,')) {
     j.nombre = texto.slice(7).replace(/[,\n\r]/g, ' ').trim().slice(0, 12);
     emitir(`n,${j.id},${j.nombre}`);
@@ -1692,7 +1758,7 @@ function servidor(ruta) {
   if (accion === 'crear' && !abierta) { claveSala = dato('clave').trim().slice(0, 30); abrirSala(); }
   if (accion === 'cerrar') cerrarSala();
   if (accion === 'estado') {
-    estadoLaptop = /^[01],[01],[0-3]$/.test(dato('e')) ? dato('e') : '0,0,0';
+    estadoLaptop = /^[01],[01],[0-3],[0-3]$/.test(dato('e')) ? dato('e') : '0,0,0,1';
     for (const j of jugadores.values()) enviar(j, `e,${estadoLaptop}`);
   }
   if (accion === 'vibrar') {
