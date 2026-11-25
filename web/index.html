@@ -5,11 +5,11 @@
 <title>Ping Phone</title>
 <style>
   html, body { margin: 0; height: 100%; background: #14161a; color: #e8e8e8; font-family: system-ui, sans-serif; overflow: hidden; }
-  #panel { position: fixed; top: 16px; left: 16px; line-height: 1.6; }
+  #panel { position: fixed; top: 76px; left: 16px; line-height: 1.6; }
   #panel b { display: inline-block; min-width: 11.5em; font-weight: 600; }
   button { margin-top: 10px; padding: 8px 14px; font-size: 15px; cursor: pointer; }
   #cerrarPanel { margin: 0 0 10px 0; }
-  #abrirPanel { position: fixed; top: 16px; left: 16px; margin: 0; }
+  #abrirPanel { position: fixed; top: 76px; left: 20px; margin: 0; }
   .fila { display: flex; align-items: center; gap: 8px; }
   .fila button { margin-top: 4px; width: 42px; font-size: 20px; padding: 4px 0; }
   .fila input { width: 200px; }
@@ -29,6 +29,9 @@
   #vistaCamara video { width: 100%; display: block; transform: scaleX(-1); }
   #vistaPunto { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%;
                 background: #4ade80; border: 2px solid #fff; display: none; z-index: 1; }
+  #salirJuego { position: fixed; top: 18px; left: 20px; z-index: 6; height: 48px; margin: 0; padding: 0 18px 0 14px; align-items: center; gap: 10px;
+                font: 600 17px Figtree, system-ui, sans-serif; color: #cfe0c3; background: rgba(31, 54, 61, .9); border: 2px solid #40798c; border-radius: 10px; cursor: pointer; }
+  #salirJuego:hover { border-color: #cfe0c3; }
   #contador { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); font-size: 30px; font-weight: 800; color: #cfe0c3; font-family: 'Bricolage Grotesque', system-ui, sans-serif;
               background: rgba(31,54,61,.88); padding: 2px 16px; border-radius: 8px; }
   #resultado:empty { display: none; }
@@ -134,7 +137,7 @@
         <div class="sec" id="salaCamEstado" style="font-size:15px">La cámara sigue tu mano para mover la paleta.</div>
       </div>
       <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-        <button class="rojo titular" id="empezar">Empezar práctica</button>
+        <button class="rojo titular" id="empezar">Empezar entrenamiento</button>
         <div class="sec" style="font-size:15px">Se puede empezar con un solo jugador.</div>
       </div>
     </div>
@@ -165,6 +168,7 @@
   </div>
 </div>
 <button id="abrirPanel" style="display:none">Panel</button>
+<button id="salirJuego" style="display:none"><svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffa726" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M15 8l4 4-4 4"/><path d="M19 12H9"/></svg>Salir del entrenamiento</button>
 <div id="panel">
   <button id="cerrarPanel">Ocultar panel</button>
   <div style="font-size:22px;margin-bottom:6px">Sala <span id="sala">…</span></div>
@@ -628,6 +632,11 @@ function terminarCalibracion(mensaje) {
   if (calibraDesdeSala) {
     $('guia').style.display = 'none';
     volverDeCalibrar();
+    // Si faltó algo (por ejemplo, la cámara apagada), se dice en la sala durante unos segundos.
+    if (!(pose && video)) {
+      avisoSalaHasta = performance.now() + 8000;
+      $('salaCamEstado').textContent = 'No se calibró la posición: la cámara no está activa.';
+    }
     return;
   }
   mostrarGuia('Calibrado', mensaje, '');
@@ -635,6 +644,7 @@ function terminarCalibracion(mensaje) {
 }
 
 let calibraDesdeSala = false;
+let avisoSalaHasta = 0;   // mientras no pase este instante, el aviso de la sala no se pisa
 function volverDeCalibrar() {
   if (!calibraDesdeSala) return;
   calibraDesdeSala = false;
@@ -713,10 +723,13 @@ function pulsoCalibrar() {
 }
 
 // ---------- Panel: ocultar y ajustes ----------
+// El panel de ajustes es una herramienta de desarrollo: solo existe en localhost o con «?dev» en la dirección.
+const MODO_DEV = ['localhost', '127.0.0.1'].includes(location.hostname) || new URLSearchParams(location.search).has('dev');
 function verPanel(visible) {
-  $('panel').style.display = visible ? '' : 'none';
-  $('abrirPanel').style.display = visible ? 'none' : '';
+  $('panel').style.display = visible && MODO_DEV ? '' : 'none';
+  $('abrirPanel').style.display = visible || !MODO_DEV ? 'none' : '';
 }
+if (!MODO_DEV) verPanel(false);
 $('cerrarPanel').onclick = () => verPanel(false);
 $('abrirPanel').onclick = () => verPanel(true);
 
@@ -787,6 +800,7 @@ function verPantalla(cual) {         // 'crear', 'sala', 'juego' o 'calibrar' (l
   if ((cual === 'juego' && !enJuego) || cual === 'calibrar') verPanel(false);   // el panel empieza oculto; el botón «Panel» lo abre
   if (cual !== 'calibrar') calibraDesdeSala = false;
   enJuego = cual === 'juego';
+  $('salirJuego').style.display = enJuego ? 'inline-flex' : 'none';
   avisarEstado();
 }
 
@@ -812,13 +826,14 @@ $('crearSala').onclick = () => {
 };
 $('cerrarSala').onclick = () => servidor('/cerrar');
 $('empezar').onclick = () => verPantalla('juego');
+$('salirJuego').onclick = () => verPantalla('sala');
 // El botón de cámara de la sala es el mismo del panel: lo pulsa y copia su estado.
 $('salaCam').onclick = () => $('camBoton').click();
 setInterval(() => {
   const estado = $('camEstado').textContent;
   $('salaCam').disabled = $('camBoton').disabled;
   $('salaCam').textContent = estado.startsWith('activa') ? 'Cámara activada' : 'Activar cámara';
-  if (estado !== 'apagada') $('salaCamEstado').textContent = 'Cámara ' + estado;
+  if (estado !== 'apagada' && performance.now() > avisoSalaHasta) $('salaCamEstado').textContent = 'Cámara ' + estado;
 }, 300);
 $('porIp').onclick = () => { $('qrUrl').style.display = ''; };
 
@@ -1490,9 +1505,11 @@ const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const RTC = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 const MAX_JUGADORES = 2;
 const TIEMPO_SIN_DATOS_MS = 3000;
-const NOMBRES = [
-  'Daniel', 'Arantxa', 'Vasco', 'Camila', 'Mateo', 'Valeria', 'Diego', 'Lucía', 'Bruno', 'Renata',
-  'Gonzalo', 'Micaela', 'Rodrigo', 'Ximena', 'Joaquín', 'Isabel', 'Santiago', 'Paula', 'Emilio', 'Antonella',
+const NOMBRES = [   // capitales del mundo
+  'Lima', 'Bogotá', 'Quito', 'Santiago', 'Buenos Aires', 'Montevideo', 'Asunción', 'Caracas', 'Brasilia', 'Panamá', 'San José', 'Managua', 'Tegucigalpa', 'San Salvador', 'La Habana', 'Santo Domingo', 'Kingston', 'Ottawa', 'Washington',
+  'Madrid', 'Lisboa', 'París', 'Londres', 'Dublín', 'Roma', 'Berlín', 'Viena', 'Berna', 'Bruselas', 'Ámsterdam', 'Copenhague', 'Oslo', 'Estocolmo', 'Helsinki', 'Reikiavik', 'Varsovia', 'Praga', 'Budapest', 'Atenas', 'Sofía', 'Bucarest', 'Belgrado', 'Zagreb', 'Tallin', 'Riga', 'Vilna', 'Kiev', 'Moscú',
+  'Tokio', 'Seúl', 'Pekín', 'Bangkok', 'Hanói', 'Manila', 'Yakarta', 'Singapur', 'Nueva Delhi', 'Katmandú', 'Daca', 'Colombo', 'Islamabad', 'Kabul', 'Teherán', 'Bagdad', 'Ankara', 'Amán', 'Beirut', 'Riad', 'Doha', 'Mascate', 'Taskent', 'Astaná', 'Ulán Bator',
+  'El Cairo', 'Rabat', 'Túnez', 'Argel', 'Dakar', 'Acra', 'Abuya', 'Nairobi', 'Adís Abeba', 'Kampala', 'Luanda', 'Maputo', 'Lusaka', 'Harare', 'Antananarivo', 'Canberra', 'Wellington', 'Suva',
 ];
 
 let nombreSala = '';
