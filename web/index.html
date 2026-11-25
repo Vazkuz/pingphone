@@ -438,7 +438,7 @@ const PALA_RADIO = 0.5;        // radio de la pala, en unidades de la raqueta si
 const PALA_ALARGUE = 1.08;     // la pala es un poco más larga que ancha
 const PALA_CENTRO_Z = -0.78;   // distancia del mango al centro de la pala
 const PALA_MEDIO_GROSOR = 0.05;
-const ESCALA_BASE = 0.6;        // tamaño que corresponde al 100 % del panel
+const ESCALA_BASE = 0.72;       // tamaño que corresponde al 100 % del panel (era 0,6: se agrandó un 20 %)
 
 function crearRaqueta() {
   const RADIO = PALA_RADIO, LADOS = 20;
@@ -1280,7 +1280,7 @@ window.addEventListener('error', (e) => { $('camEstado').textContent = 'error de
 // Una sola pelota a la vez. Sale del otro lado, bota en la mitad del jugador y hay que
 // devolverla: vale si su primer bote tras el golpe es en la mitad contraria.
 const PELOTA_RADIO = 0.02 * M;         // 2 cm
-const HITBOX = 1.3;                    // la zona de golpe es 30 % más grande que la pala que se ve
+const HITBOX = 1.4;                    // la zona de golpe es 40 % más grande que la pala que se ve
 const GRAVEDAD = 9.81 * M;             // unidades por segundo²
 const REBOTE_MESA = 0.88;              // parte de la velocidad vertical que conserva al botar (de 30 cm sube a 23)
 const ROCE_MESA = 0.94;                // parte de la velocidad horizontal que conserva al botar
