@@ -794,6 +794,15 @@ let enJuego = false;                 // false mientras se ve «Crear sala» o «
 let salaAbierta = false;
 const enSala = [null, { dentro: false, nombre: '' }, { dentro: false, nombre: '' }];   // jugadores 1 y 2
 
+// Pantalla completa durante el entrenamiento. El navegador solo la concede justo después de un clic
+// o una tecla en esta laptop: si el entrenamiento se empieza desde el celular, puede negarla.
+function pantallaCompleta(entrar) {
+  try {
+    if (entrar && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    if (!entrar && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch (e) { /* el navegador no lo permite */ }
+}
+
 function verPantalla(cual) {         // 'crear', 'sala', 'juego' o 'calibrar' (la mesa a la vista, sin pelotas)
   $('pCrear').style.display = cual === 'crear' ? '' : 'none';
   $('pSala').style.display = cual === 'sala' ? '' : 'none';
@@ -801,6 +810,7 @@ function verPantalla(cual) {         // 'crear', 'sala', 'juego' o 'calibrar' (l
   if (cual !== 'calibrar') calibraDesdeSala = false;
   enJuego = cual === 'juego';
   $('salirJuego').style.display = enJuego ? 'inline-flex' : 'none';
+  if (cual !== 'calibrar') pantallaCompleta(enJuego);
   avisarEstado();
 }
 
@@ -839,8 +849,15 @@ $('porIp').onclick = () => { $('qrUrl').style.display = ''; };
 
 // El celular del jugador 1 muestra botones según cómo esté la laptop: se le avisa cuando cambia.
 let estadoEnviado = '';
+let problemaDesde = 0, problemaVisto = AVISO_NINGUNO;
 function avisarEstado() {
-  const texto = ($('camEstado').textContent.startsWith('activa') ? 1 : 0) + ',' + (enJuego ? 1 : 0);
+  // Problema de la cámara para el aviso grande del celular. Mientras la cámara está cargando no se avisa,
+  // y un problema solo cuenta si dura más de un segundo (una mano tapada un instante no es un problema).
+  const camara = $('camEstado').textContent;
+  let problema = salaAbierta && !camara.startsWith('cargando') && !camara.startsWith('pidiendo') ? avisoCamara() : AVISO_NINGUNO;
+  if (problema !== problemaVisto) { problemaVisto = problema; problemaDesde = performance.now(); }
+  if (problema !== AVISO_NINGUNO && performance.now() - problemaDesde < 1000) problema = AVISO_NINGUNO;
+  const texto = (camara.startsWith('activa') ? 1 : 0) + ',' + (enJuego ? 1 : 0) + ',' + problema;
   if (texto === estadoEnviado) return;
   estadoEnviado = texto;
   servidor('/estado?e=' + texto);
@@ -869,7 +886,7 @@ function alEvento(e) {
     // La sala se abrió o se cerró. Al recargar la página con la sala abierta se vuelve a ella.
     salaAbierta = p[1] === '1';
     $('salaClave').textContent = p[2] === '1' ? 'Sala · con contraseña' : 'Sala · sin contraseña';
-    if (!salaAbierta) verPantalla('crear');
+    if (!salaAbierta) { verPantalla('crear'); apagarCamara(); }   // fuera de la sala la cámara no se usa
     else if (!enJuego) verPantalla('sala');
     // Al abrir la sala se enciende la cámara sola (el navegador pide el permiso si hace falta).
     if (salaAbierta && !$('camBoton').disabled && !video) activarCamara();
@@ -1004,6 +1021,19 @@ async function abrirCamara(idCamara) {
     v.requestVideoFrameCallback(contar);
   }
   return flujo.getVideoTracks()[0];
+}
+
+// Apaga la cámara y la suelta (se apaga también su luz). Se usa al cerrar la sala.
+function apagarCamara() {
+  if (!video) return;
+  video.srcObject.getTracks().forEach((pista) => pista.stop());
+  video.remove();
+  video = null;
+  if (pose) { pose.close(); pose = null; }   // el modelo se vuelve a crear al activar la cámara
+  munecaVista = null;
+  $('vistaCamara').style.display = 'none';
+  $('camEstado').textContent = 'apagada';
+  $('camBoton').disabled = false;
 }
 
 // Lista las cámaras del equipo para poder elegir (las virtuales no sirven).
@@ -1516,7 +1546,7 @@ let nombreSala = '';
 let codigoSala = '';              // lo que distingue esta sala de las de otras personas; va en el QR
 let claveSala = '';               // contraseña ('' = sin contraseña)
 let abierta = false;
-let estadoLaptop = '0,0';         // «cámara activa, práctica en curso», para los botones del celular
+let estadoLaptop = '0,0,0';       // «cámara activa, práctica en curso, problema de la cámara», para el celular
 let supa = null, canal = null;
 // celular -> { id, celular, nombre, ultimo, paso, aviso, pc, ctrl, listo }
 const jugadores = new Map();
@@ -1662,7 +1692,7 @@ function servidor(ruta) {
   if (accion === 'crear' && !abierta) { claveSala = dato('clave').trim().slice(0, 30); abrirSala(); }
   if (accion === 'cerrar') cerrarSala();
   if (accion === 'estado') {
-    estadoLaptop = /^[01],[01]$/.test(dato('e')) ? dato('e') : '0,0';
+    estadoLaptop = /^[01],[01],[0-3]$/.test(dato('e')) ? dato('e') : '0,0,0';
     for (const j of jugadores.values()) enviar(j, `e,${estadoLaptop}`);
   }
   if (accion === 'vibrar') {

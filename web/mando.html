@@ -36,6 +36,8 @@
   .estado { display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 600; }
   .punto { width: 14px; height: 14px; border-radius: 50%; background: #70a9a1; }
   .punto.mal { background: var(--rojo); }
+  #avisoCam { display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--bola); color: var(--fondo); border-radius: 10px; }
+  #avisoCam button { height: 54px; background: var(--fondo); color: #fff; border: 0; border-radius: 8px; font-size: 20px; }
   .salida { height: 60px; display: flex; align-items: center; justify-content: center; gap: 12px; background: var(--tarjeta); color: var(--texto);
             font: 600 19px Figtree, system-ui, sans-serif; border: 2px solid var(--linea); border-radius: 10px; }
   .pie { padding-top: 16px; border-top: 1px solid var(--linea); font-size: 14px; line-height: 1.45; color: var(--sec); }
@@ -91,14 +93,18 @@
   <div id="activo" hidden style="display:flex;flex-direction:column;gap:16px">
     <div class="estado"><div class="punto" id="punto"></div><span id="estado">Conectando…</span></div>
     <!-- Solo el jugador 1 maneja la laptop desde su celular. -->
+    <!-- Aviso grande: la cámara de la laptop está apagada o no ve al jugador. -->
+    <div id="avisoCam" hidden role="status">
+      <div style="display:flex;gap:14px;align-items:center"><svg id="avisoIconoCam" aria-hidden="true" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#1f363d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M15 10.5l6-3.5v10l-6-3.5"/><path d="M3 3l18 18"/></svg><svg id="avisoIconoMano" aria-hidden="true" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#1f363d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M11 11V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M14 11V6a1.5 1.5 0 0 1 3 0v8"/><path d="M8 13l-1.6-1.7a1.5 1.5 0 0 0-2.3 1.9L7.5 18a5 5 0 0 0 4 2H13a4 4 0 0 0 4-4v-2"/><path d="M9.5 22h6" stroke-dasharray="1.5 2.5"/></svg><div class="titulo" id="avisoTitulo" style="font-size:27px;line-height:1.05"></div></div>
+      <div id="avisoTexto" style="font-size:17px;line-height:1.4;font-weight:500"></div>
+      <button class="titulo" id="camara" hidden>Activar cámara</button>
+    </div>
     <div class="tarjeta" id="enCurso" hidden style="gap:6px">
       <div class="titulo" style="font-size:28px;line-height:1.05">Entrenamiento en curso</div>
       <p>Mira la laptop: tu celular es la paleta.</p>
     </div>
     <div id="jefe" hidden style="display:flex;flex-direction:column;gap:12px">
       <button class="rojo titulo" id="empezar" style="height:64px">Empezar entrenamiento</button>
-      <button class="borde titulo" id="camara" style="height:56px">Activar cámara</button>
-      <p id="camLista" hidden style="color:var(--sec)">La cámara de la laptop está activada.</p>
     </div>
     <button class="borde titulo" id="calibrar" style="height:64px">Calibrar</button>
     <div class="error" id="aviso2" hidden></div>
@@ -308,8 +314,18 @@ function alMensaje(texto) {
     // Estado de la laptop: cámara activa y práctica en curso.
     const camara = p[1] === '1', juego = p[2] === '1';
     $('jefe').hidden = miId !== 1;
-    $('camara').hidden = camara;
-    $('camLista').hidden = !camara;
+    // Problema de la cámara: 1 = desactivada, 2 = no ve a nadie, 3 = no ve la muñeca.
+    const problema = Number(p[3]) || 0;
+    $('avisoCam').hidden = problema === 0;
+    if (problema) {
+      $('avisoTitulo').textContent = ['', 'La cámara está desactivada', 'La cámara no ve a nadie', 'La cámara no ve tu muñeca'][problema];
+      $('avisoTexto').textContent = problema === 1
+        ? 'Sin la cámara de la laptop la paleta no se mueve.'
+        : 'Ponte frente a la laptop hasta que te vea de las rodillas a la cabeza.';
+      $('avisoIconoCam').style.display = problema === 1 ? '' : 'none';
+      $('avisoIconoMano').style.display = problema === 1 ? 'none' : '';
+      $('camara').hidden = !(problema === 1 && miId === 1);   // solo el jugador 1 maneja la laptop
+    }
     $('empezar').hidden = juego;
     $('volver').hidden = !(juego && miId === 1);
     $('enCurso').hidden = !juego;
